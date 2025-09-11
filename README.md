@@ -113,9 +113,10 @@ A modern, intelligent task management application that combines traditional to-d
 ## 🎯 AI Features Explained
 
 ### Smart Prioritization Algorithm
+
 The AI calculates task priority scores based on:
 - **Priority Level**: High (30 points), Medium (20 points), Low (10 points)
-- **Due Date Urgency**: 
+- **Due Date Urgency**:
   - Due today/tomorrow: +20 points
   - Due within 3 days: +15 points
   - Due within a week: +10 points
@@ -123,6 +124,7 @@ The AI calculates task priority scores based on:
 - **Maximum Score**: Capped at 100 points
 
 ### Intelligent Suggestions
+
 The AI provides contextual recommendations:
 - **Overdue Tasks**: Alerts for tasks past their due date
 - **Missing Deadlines**: Suggests setting due dates for high-priority tasks
@@ -132,11 +134,13 @@ The AI provides contextual recommendations:
 ## 🎨 Customization
 
 ### Themes
+
 - **Light Mode**: Clean, bright interface (default)
 - **Dark Mode**: Easy on the eyes for low-light environments
 - **Persistent**: Your theme preference is saved automatically
 
 ### Categories
+
 Default categories include:
 - **Work**: Professional tasks and projects
 - **Personal**: Personal life and hobbies
@@ -235,7 +239,6 @@ If you encounter any issues or have questions:
 
 ---
 
-**Made with ❤️ for productivity enthusiasts**
+## Made with ❤️ for productivity enthusiasts
 
 *Task-Tide: Where AI meets productivity*
- 
