@@ -53,9 +53,9 @@ A modern, intelligent task management application that combines traditional to-d
 ## 🚀 Getting Started
 
 ### Prerequisites
-- Modern web browser (Chrome, Firefox, Safari, Edge)
-- **For Docker deployment**: Docker and Docker Compose installed
-- **For local development**: No additional dependencies required
+- **Node.js 18+** (for backend development)
+- **Modern web browser** (Chrome, Firefox, Safari, Edge)
+- **Docker** (optional, for containerized deployment)
 
 ### Installation
 
@@ -65,16 +65,28 @@ A modern, intelligent task management application that combines traditional to-d
    cd task-tide
    ```
 
-2. **Open the application**
+2. **Install dependencies**
    ```bash
-   # Simply open index.html in your browser
-   open index.html
-   # Or serve it with a local server
-   python -m http.server 8000
-   # Then visit http://localhost:8000
+   # Install all dependencies (frontend + backend)
+   npm run install:all
    ```
 
-3. **Start managing tasks!**
+3. **Start the application**
+   ```bash
+   # Start both frontend and backend
+   npm run dev
+   
+   # Or start individually
+   npm run dev:backend    # Backend API (port 3001)
+   npm run dev:frontend   # Frontend (port 3000)
+   ```
+
+4. **Access the application**
+   - **Frontend**: http://localhost:8080
+   - **Backend API**: http://localhost:3001
+   - **API Health**: http://localhost:3001/health
+
+5. **Start managing tasks!**
    - Add your first task using the task form
    - Explore the calendar view to see your schedule
    - Check the analytics to track your progress
@@ -311,26 +323,29 @@ Default categories include:
 ### Project Structure
 ```
 task-tide/
-├── config/                    # Configuration files
-│   ├── docker-compose -f config/docker-compose.yml.yml     # Docker orchestration
-│   ├── Dockerfile             # Production Docker image
-│   ├── Dockerfile.dev         # Development Docker image
+├── backend/                   # Backend API Server
+│   ├── src/                   # Source code
+│   │   ├── routes/            # API routes
+│   │   ├── middleware/        # Custom middleware
+│   │   └── server.js          # Main server file
+│   ├── config/                # Configuration files
+│   ├── package.json           # Backend dependencies
+│   └── env.example            # Environment variables template
+├── frontend/                  # Frontend Application
+│   ├── public/                # Public web assets
+│   │   └── index.html         # Main HTML file
+│   ├── src/                   # Source code
+│   │   ├── assets/            # Static assets
+│   │   ├── scripts/           # JavaScript files
+│   │   └── styles/            # CSS files
+│   └── package.json           # Frontend dependencies
+├── config/                    # Docker & deployment configs
+│   ├── docker-compose.yml     # Multi-service orchestration
+│   ├── Dockerfile             # Frontend container
+│   ├── Dockerfile.backend     # Backend container
 │   └── nginx.conf             # Nginx configuration
 ├── docs/                      # Documentation
-│   ├── README.md              # Main project documentation
-│   └── PROJECT_STRUCTURE.md   # Project structure guide
-├── public/                    # Public web assets
-│   └── index.html             # Main HTML file
-├── scripts/                   # Build and deployment scripts
-│   ├── deploy.sh              # Deployment script
-│   └── Makefile               # Build automation
-├── src/                       # Source code
-│   ├── assets/                # Static assets
-│   │   └── images/            # Image files
-│   ├── scripts/               # JavaScript files
-│   │   └── script.js          # Main application logic
-│   └── styles/                # CSS files
-│       └── style.css          # Main stylesheet
+├── scripts/                   # Build & deployment scripts
 ├── .dockerignore              # Docker ignore file
 ├── .gitignore                 # Git ignore file
 ├── LICENSE                    # MIT License
@@ -338,12 +353,18 @@ task-tide/
 ```
 
 ### Key Components
+
+#### **Frontend**
 - **TaskTideApp Class**: Main application controller
+- **API Service**: Backend communication layer
 - **Task Management**: CRUD operations for tasks
-- **AI Engine**: Smart prioritization and suggestions
-- **Calendar Renderer**: Dynamic calendar generation
-- **Theme Manager**: Dark/light mode switching
-- **Data Persistence**: LocalStorage integration
+- **AI Integration**: Smart suggestions and analytics
+
+#### **Backend**
+- **Express.js API**: RESTful API server
+- **Task Routes**: CRUD endpoints for task management
+- **AI Routes**: Smart suggestions and analytics endpoints
+- **Middleware**: Error handling, validation, and security
 
 ## 🚀 Future Enhancements
 

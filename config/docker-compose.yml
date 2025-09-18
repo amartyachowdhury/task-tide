@@ -4,22 +4,50 @@
 version: '3.8'
 
 services:
-  # Main Task-Tide application
-  task-tide:
+  # Backend API service
+  backend:
+    build:
+      context: ..
+      dockerfile: config/Dockerfile.backend
+    container_name: task-tide-backend
+    ports:
+      - "3001:3001"
+    environment:
+      - NODE_ENV=production
+      - PORT=3001
+      - FRONTEND_URL=http://localhost:8080
+    volumes:
+      - task-tide-data:/app/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - task-tide-network
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.task-tide-backend.rule=Host(`api.task-tide.localhost`)"
+      - "traefik.http.services.task-tide-backend.loadbalancer.server.port=3001
+
+  # Frontend application
+  frontend:
     build:
       context: ..
       dockerfile: config/Dockerfile
       target: production
-    container_name: task-tide-app
+    container_name: task-tide-frontend
     ports:
       - "8080:80"
     environment:
       - NODE_ENV=production
       - NGINX_HOST=localhost
       - NGINX_PORT=80
-    volumes:
-      # Mount for persistent data (if needed for future backend)
-      - task-tide-data:/app/data
+      - BACKEND_URL=http://backend:3001
+    depends_on:
+      - backend
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost/health"]
@@ -31,8 +59,8 @@ services:
       - task-tide-network
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.task-tide.rule=Host(`task-tide.localhost`)"
-      - "traefik.http.services.task-tide.loadbalancer.server.port=80"
+      - "traefik.http.routers.task-tide-frontend.rule=Host(`task-tide.localhost`)"
+      - "traefik.http.services.task-tide-frontend.loadbalancer.server.port=80"
 
   # Development service (optional)
   task-tide-dev:

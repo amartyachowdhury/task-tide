@@ -28,8 +28,8 @@ RUN apk add --no-cache curl
 COPY config/nginx.conf /etc/nginx/nginx.conf
 
 # Copy built application from builder stage
-COPY --from=builder /app/public /usr/share/nginx/html
-COPY --from=builder /app/src /usr/share/nginx/html/src
+COPY --from=builder /app/frontend/public /usr/share/nginx/html
+COPY --from=builder /app/frontend/src /usr/share/nginx/html/src
 
 # Set proper permissions for nginx
 RUN chown -R nginx:nginx /usr/share/nginx/html && \

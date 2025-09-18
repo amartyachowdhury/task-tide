@@ -1,19 +1,30 @@
 {
   "name": "task-tide",
   "version": "1.0.0",
-  "description": "AI-Powered Task Scheduler and Calendar Application",
-  "main": "public/index.html",
+  "description": "AI-Powered Task Scheduler and Calendar Application - Full Stack",
+  "main": "backend/src/server.js",
   "scripts": {
-    "start": "python -m http.server 8000",
-    "dev": "python -m http.server 3000",
-    "build": "echo 'No build process needed for static files'",
+    "start": "concurrently \"npm run start:backend\" \"npm run start:frontend\"",
+    "start:backend": "cd backend && npm start",
+    "start:frontend": "cd frontend && npm start",
+    "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
+    "dev:backend": "cd backend && npm run dev",
+    "dev:frontend": "cd frontend && npm run dev",
+    "build": "npm run build:backend && npm run build:frontend",
+    "build:backend": "cd backend && npm run build",
+    "build:frontend": "cd frontend && npm run build",
+    "install:all": "npm install && cd backend && npm install && cd ../frontend && npm install",
     "docker:build": "docker-compose -f config/docker-compose.yml build",
     "docker:up": "docker-compose -f config/docker-compose.yml up -d",
     "docker:down": "docker-compose -f config/docker-compose.yml down",
     "docker:logs": "docker-compose -f config/docker-compose.yml logs -f",
     "deploy": "./scripts/deploy.sh",
-    "lint": "echo 'No linting configured yet'",
-    "test": "echo 'No tests configured yet'"
+    "lint": "npm run lint:backend && npm run lint:frontend",
+    "lint:backend": "cd backend && npm run lint",
+    "lint:frontend": "cd frontend && npm run lint",
+    "test": "npm run test:backend && npm run test:frontend",
+    "test:backend": "cd backend && npm test",
+    "test:frontend": "cd frontend && npm test"
   },
   "keywords": [
     "task-management",
@@ -38,6 +49,8 @@
   "engines": {
     "node": ">=18.0.0"
   },
-  "devDependencies": {},
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  },
   "dependencies": {}
 }

@@ -1,0 +1,28 @@
+{
+  "name": "task-tide-frontend",
+  "version": "1.0.0",
+  "description": "Frontend for Task-Tide AI-Powered Task Scheduler",
+  "main": "public/index.html",
+  "scripts": {
+    "start": "python -m http.server 8000",
+    "dev": "python -m http.server 3000",
+    "build": "echo 'No build process needed for static files'",
+    "lint": "echo 'No linting configured yet'",
+    "test": "echo 'No tests configured yet'"
+  },
+  "keywords": [
+    "task-management",
+    "frontend",
+    "javascript",
+    "ai",
+    "productivity",
+    "calendar"
+  ],
+  "author": "Your Name",
+  "license": "MIT",
+  "dependencies": {},
+  "devDependencies": {},
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
