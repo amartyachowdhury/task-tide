@@ -7,6 +7,7 @@ A modern, intelligent task management application that combines traditional to-d
 ## 🚀 Features
 
 ### Core Task Management
+
 - **Rich Task Creation**: Add tasks with titles, descriptions, categories, priorities, due dates, and time estimates
 - **Smart Categorization**: Organize tasks by Work, Personal, Health, and Learning categories
 - **Priority Levels**: High, Medium, and Low priority with visual indicators
@@ -14,6 +15,7 @@ A modern, intelligent task management application that combines traditional to-d
 - **Time Estimation**: Track estimated hours for better planning
 
 ### 🤖 AI-Powered Intelligence
+
 - **Smart Prioritization**: AI calculates priority scores based on urgency, keywords, and deadlines
 - **Intelligent Suggestions**: Get personalized recommendations for task management
 - **Overdue Detection**: Automatic identification and alerts for overdue tasks
@@ -21,6 +23,7 @@ A modern, intelligent task management application that combines traditional to-d
 - **Smart Filtering**: AI-enhanced task filtering and sorting
 
 ### 📅 Calendar Integration
+
 - **Monthly Calendar View**: Visual calendar with task distribution
 - **Task Scheduling**: See all tasks on their due dates
 - **Today Highlighting**: Current date is prominently displayed
@@ -28,6 +31,7 @@ A modern, intelligent task management application that combines traditional to-d
 - **Quick Task Access**: Click on calendar tasks for instant details
 
 ### 📊 Analytics Dashboard
+
 - **Completion Tracking**: Monitor your task completion rate
 - **Productivity Score**: AI-calculated productivity percentage
 - **Time Blocking**: Track total time allocated to tasks
@@ -35,6 +39,7 @@ A modern, intelligent task management application that combines traditional to-d
 - **Progress Visualization**: Clear metrics for productivity improvement
 
 ### 🎨 Modern UI/UX
+
 - **Dark/Light Mode**: Toggle between themes with persistent preference
 - **Responsive Design**: Works seamlessly on desktop, tablet, and mobile
 - **Smooth Animations**: Polished interactions and transitions
@@ -53,6 +58,7 @@ A modern, intelligent task management application that combines traditional to-d
 ## 🚀 Getting Started
 
 ### Prerequisites
+
 - **Node.js 18+** (for backend development)
 - **Modern web browser** (Chrome, Firefox, Safari, Edge)
 - **Docker** (optional, for containerized deployment)
@@ -60,18 +66,21 @@ A modern, intelligent task management application that combines traditional to-d
 ### Installation
 
 1. **Clone the repository**
+
    ```bash
    git clone https://github.com/yourusername/task-tide.git
    cd task-tide
    ```
 
 2. **Install dependencies**
+
    ```bash
    # Install all dependencies (frontend + backend)
    npm run install:all
    ```
 
 3. **Start the application**
+
    ```bash
    # Start both frontend and backend
    npm run dev
@@ -82,9 +91,9 @@ A modern, intelligent task management application that combines traditional to-d
    ```
 
 4. **Access the application**
-   - **Frontend**: http://localhost:8080
-   - **Backend API**: http://localhost:3001
-   - **API Health**: http://localhost:3001/health
+   - **Frontend**: <http://localhost:8080>
+   - **Backend API**: <http://localhost:3001>
+   - **API Health**: <http://localhost:3001/health>
 
 5. **Start managing tasks!**
    - Add your first task using the task form
@@ -174,6 +183,7 @@ docker-compose -f config/docker-compose.yml down
 ### Docker Configuration
 
 #### Production Setup
+
 - **Base Image**: Nginx Alpine (lightweight and secure)
 - **Port**: 8080 (configurable)
 - **Health Checks**: Built-in health monitoring
@@ -181,6 +191,7 @@ docker-compose -f config/docker-compose.yml down
 - **Performance**: Gzip compression, caching, optimized nginx config
 
 #### Development Setup
+
 - **Base Image**: Node.js Alpine
 - **Port**: 3000
 - **Live Reload**: Automatic file watching
@@ -245,6 +256,7 @@ docker-compose -f config/docker-compose.yml restart task-tide
 ## 📖 How to Use
 
 ### Adding Tasks
+
 1. Navigate to the Tasks view
 2. Fill in the task form:
    - **Title**: Required task name
@@ -256,18 +268,21 @@ docker-compose -f config/docker-compose.yml restart task-tide
 3. Click "Add Task"
 
 ### AI Features
+
 - **AI Score**: Each task gets an intelligent priority score (0-100)
 - **Smart Suggestions**: Check the sidebar for AI recommendations
 - **Overdue Alerts**: Get notified about overdue tasks
 - **Productivity Tips**: Receive suggestions for better task management
 
 ### Calendar View
+
 - **Navigation**: Use arrow buttons to navigate months
 - **Task Display**: Tasks appear on their due dates
 - **Quick Access**: Click on tasks to view details
 - **Today Indicator**: Current date is highlighted
 
 ### Analytics
+
 - **Completion Rate**: See how many tasks you've completed
 - **Productivity Score**: AI-calculated efficiency percentage
 - **Time Tracking**: Monitor total time allocated to tasks
@@ -278,6 +293,7 @@ docker-compose -f config/docker-compose.yml restart task-tide
 ### Smart Prioritization Algorithm
 
 The AI calculates task priority scores based on:
+
 - **Priority Level**: High (30 points), Medium (20 points), Low (10 points)
 - **Due Date Urgency**:
   - Due today/tomorrow: +20 points
@@ -289,6 +305,7 @@ The AI calculates task priority scores based on:
 ### Intelligent Suggestions
 
 The AI provides contextual recommendations:
+
 - **Overdue Tasks**: Alerts for tasks past their due date
 - **Missing Deadlines**: Suggests setting due dates for high-priority tasks
 - **Task Distribution**: Recommends breaking down large task categories
@@ -305,6 +322,7 @@ The AI provides contextual recommendations:
 ### Categories
 
 Default categories include:
+
 - **Work**: Professional tasks and projects
 - **Personal**: Personal life and hobbies
 - **Health**: Fitness, medical, and wellness
@@ -321,7 +339,8 @@ Default categories include:
 ## 🔧 Development
 
 ### Project Structure
-```
+
+```text
 task-tide/
 ├── backend/                   # Backend API Server
 │   ├── src/                   # Source code
@@ -355,12 +374,14 @@ task-tide/
 ### Key Components
 
 #### **Frontend**
+
 - **TaskTideApp Class**: Main application controller
 - **API Service**: Backend communication layer
 - **Task Management**: CRUD operations for tasks
 - **AI Integration**: Smart suggestions and analytics
 
 #### **Backend**
+
 - **Express.js API**: RESTful API server
 - **Task Routes**: CRUD endpoints for task management
 - **AI Routes**: Smart suggestions and analytics endpoints
@@ -369,6 +390,7 @@ task-tide/
 ## 🚀 Future Enhancements
 
 ### Planned Features
+
 - [ ] **Drag & Drop**: Drag tasks between calendar dates
 - [ ] **Task Dependencies**: Link related tasks
 - [ ] **Time Tracking**: Actual vs. estimated time tracking
@@ -381,6 +403,7 @@ task-tide/
 - [ ] **Goal Setting**: Long-term goal management
 
 ### AI Improvements
+
 - [ ] **Natural Language Processing**: Parse task descriptions for better categorization
 - [ ] **Predictive Scheduling**: Suggest optimal times for tasks
 - [ ] **Pattern Recognition**: Learn from your productivity patterns
@@ -398,6 +421,7 @@ We welcome contributions! Here's how you can help:
 5. **Open a Pull Request**
 
 ### Development Guidelines
+
 - Follow existing code style and patterns
 - Add comments for complex logic
 - Test on multiple browsers
@@ -429,4 +453,4 @@ If you encounter any issues or have questions:
 
 ## Made with ❤️ for productivity enthusiasts
 
-*Task-Tide: Where AI meets productivity*
+## Task-Tide: Where AI meets productivity

@@ -1,5 +1,5 @@
 # Task-Tide: AI-Powered Task Scheduler
-# Docker Compose configuration for easy deployment
+# Docker Compose configuration for full-stack deployment
 
 version: '3.8'
 
@@ -7,8 +7,8 @@ services:
   # Backend API service
   backend:
     build:
-      context: ..
-      dockerfile: config/Dockerfile.backend
+      context: .
+      dockerfile: Dockerfile.backend
     container_name: task-tide-backend
     ports:
       - "3001:3001"
@@ -30,13 +30,13 @@ services:
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.task-tide-backend.rule=Host(`api.task-tide.localhost`)"
-      - "traefik.http.services.task-tide-backend.loadbalancer.server.port=3001
+      - "traefik.http.services.task-tide-backend.loadbalancer.server.port=3001"
 
   # Frontend application
   frontend:
     build:
-      context: ..
-      dockerfile: config/Dockerfile
+      context: .
+      dockerfile: Dockerfile.frontend
       target: production
     container_name: task-tide-frontend
     ports:
@@ -63,16 +63,19 @@ services:
       - "traefik.http.services.task-tide-frontend.loadbalancer.server.port=80"
 
   # Development service (optional)
-  task-tide-dev:
+  dev:
     build:
-      context: ..
-      dockerfile: config/Dockerfile.dev
+      context: .
+      dockerfile: Dockerfile.dev
     container_name: task-tide-dev
     ports:
       - "3000:3000"
+      - "3001:3001"
     volumes:
       - .:/app
       - /app/node_modules
+      - /app/frontend/node_modules
+      - /app/backend/node_modules
     environment:
       - NODE_ENV=development
     profiles:
@@ -80,48 +83,14 @@ services:
     networks:
       - task-tide-network
 
-  # Redis for future session storage (optional)
-  redis:
-    image: redis:7-alpine
-    container_name: task-tide-redis
-    ports:
-      - "6379:6379"
-    volumes:
-      - redis-data:/data
-    restart: unless-stopped
-    profiles:
-      - redis
-    networks:
-      - task-tide-network
-    command: redis-server --appendonly yes
-
-  # PostgreSQL for future data persistence (optional)
-  postgres:
-    image: postgres:15-alpine
-    container_name: task-tide-postgres
-    ports:
-      - "5432:5432"
-    environment:
-      - POSTGRES_DB=tasktide
-      - POSTGRES_USER=tasktide
-      - POSTGRES_PASSWORD=tasktide_password
-    volumes:
-      - postgres-data:/var/lib/postgresql/data
-    restart: unless-stopped
-    profiles:
-      - postgres
-    networks:
-      - task-tide-network
-
-volumes:
-  task-tide-data:
-    driver: local
-  redis-data:
-    driver: local
-  postgres-data:
-    driver: local
-
+# Networks
 networks:
   task-tide-network:
     driver: bridge
     name: task-tide-network
+
+# Volumes
+volumes:
+  task-tide-data:
+    driver: local
+    name: task-tide-data

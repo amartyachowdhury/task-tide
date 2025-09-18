@@ -10,67 +10,96 @@ help: ## Show this help message
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-20s\033[0m %s\n", $$1, $$2}'
 
 # Production commands
-build: ## Build the production Docker image
-	docker-compose -f config/docker-compose.yml -f config/docker-compose -f config/docker-compose.yml.yml build task-tide
+build: ## Build the production Docker images
+	docker-compose build
 
 run: ## Run the production application
-	docker-compose -f config/docker-compose.yml up -d task-tide
-	@echo "Task-Tide is running at http://localhost:8080"
+	docker-compose up -d
+	@echo "Task-Tide is running at:"
+	@echo "  Frontend: http://localhost:8080"
+	@echo "  Backend API: http://localhost:3001"
+	@echo "  API Health: http://localhost:3001/health"
 
 stop: ## Stop the production application
-	docker-compose -f config/docker-compose.yml down
+	docker-compose down
 
 restart: ## Restart the production application
-	docker-compose -f config/docker-compose.yml restart task-tide
+	docker-compose restart
 
 # Development commands
 dev: ## Run in development mode
-	docker-compose -f config/docker-compose.yml --profile dev up -d task-tide-dev
-	@echo "Task-Tide dev server is running at http://localhost:3000"
+	docker-compose --profile dev up -d dev
+	@echo "Task-Tide dev server is running at:"
+	@echo "  Frontend: http://localhost:3000"
+	@echo "  Backend API: http://localhost:3001"
 
 dev-stop: ## Stop development server
-	docker-compose -f config/docker-compose.yml --profile dev down
+	docker-compose --profile dev down
 
-# Database commands (for future use)
-db-up: ## Start PostgreSQL database
-	docker-compose -f config/docker-compose.yml --profile postgres up -d postgres
+# Individual service commands
+build-frontend: ## Build only the frontend
+	docker-compose build frontend
 
-db-down: ## Stop PostgreSQL database
-	docker-compose -f config/docker-compose.yml --profile postgres down
+build-backend: ## Build only the backend
+	docker-compose build backend
 
-redis-up: ## Start Redis
-	docker-compose -f config/docker-compose.yml --profile redis up -d redis
+run-frontend: ## Run only the frontend
+	docker-compose up -d frontend
 
-redis-down: ## Stop Redis
-	docker-compose -f config/docker-compose.yml --profile redis down
+run-backend: ## Run only the backend
+	docker-compose up -d backend
 
 # Utility commands
 logs: ## Show application logs
-	docker-compose -f config/docker-compose.yml logs -f task-tide
+	docker-compose logs -f
+
+logs-frontend: ## Show frontend logs
+	docker-compose logs -f frontend
+
+logs-backend: ## Show backend logs
+	docker-compose logs -f backend
 
 logs-dev: ## Show development logs
-	docker-compose -f config/docker-compose.yml --profile dev logs -f task-tide-dev
+	docker-compose --profile dev logs -f dev
 
-shell: ## Open shell in running container
-	docker-compose -f config/docker-compose.yml exec task-tide sh
+shell-frontend: ## Open shell in frontend container
+	docker-compose exec frontend sh
+
+shell-backend: ## Open shell in backend container
+	docker-compose exec backend sh
+
+shell-dev: ## Open shell in development container
+	docker-compose --profile dev exec dev sh
 
 health: ## Check application health
-	curl -f http://localhost:8080/health || echo "Application is not healthy"
+	@echo "Checking frontend health..."
+	@curl -f http://localhost:8080/health || echo "Frontend is not healthy"
+	@echo "Checking backend health..."
+	@curl -f http://localhost:3001/health || echo "Backend is not healthy"
+
+health-frontend: ## Check frontend health
+	curl -f http://localhost:8080/health || echo "Frontend is not healthy"
+
+health-backend: ## Check backend health
+	curl -f http://localhost:3001/health || echo "Backend is not healthy"
 
 # Cleanup commands
 clean: ## Remove containers and images
-	docker-compose -f config/docker-compose.yml down --rmi all --volumes --remove-orphans
+	docker-compose down --rmi all --volumes --remove-orphans
 
 clean-all: ## Remove everything including volumes
-	docker-compose -f config/docker-compose.yml down --rmi all --volumes --remove-orphans
+	docker-compose down --rmi all --volumes --remove-orphans
 	docker system prune -f
 
 # Build and run in one command
 deploy: build run ## Build and run the application
 
-# Full stack (with databases)
-full-stack: ## Run full stack with databases
-	docker-compose -f config/docker-compose.yml --profile postgres --profile redis up -d
+# Status commands
+status: ## Show container status
+	docker-compose ps
 
-full-stop: ## Stop full stack
-	docker-compose -f config/docker-compose.yml --profile postgres --profile redis down
+# Quick start commands
+quick-start: build run ## Quick start (build and run)
+	@echo "Waiting for services to be ready..."
+	@sleep 10
+	@make health
