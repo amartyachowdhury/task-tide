@@ -1,0 +1,99 @@
+# Task-Tide: AI-Powered Task Scheduler
+# Docker Compose configuration for easy deployment
+
+version: '3.8'
+
+services:
+  # Main Task-Tide application
+  task-tide:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: production
+    container_name: task-tide-app
+    ports:
+      - "8080:80"
+    environment:
+      - NODE_ENV=production
+      - NGINX_HOST=localhost
+      - NGINX_PORT=80
+    volumes:
+      # Mount for persistent data (if needed for future backend)
+      - task-tide-data:/app/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - task-tide-network
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.task-tide.rule=Host(`task-tide.localhost`)"
+      - "traefik.http.services.task-tide.loadbalancer.server.port=80"
+
+  # Development service (optional)
+  task-tide-dev:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    container_name: task-tide-dev
+    ports:
+      - "3000:3000"
+    volumes:
+      - .:/app
+      - /app/node_modules
+    environment:
+      - NODE_ENV=development
+    profiles:
+      - dev
+    networks:
+      - task-tide-network
+
+  # Redis for future session storage (optional)
+  redis:
+    image: redis:7-alpine
+    container_name: task-tide-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    restart: unless-stopped
+    profiles:
+      - redis
+    networks:
+      - task-tide-network
+    command: redis-server --appendonly yes
+
+  # PostgreSQL for future data persistence (optional)
+  postgres:
+    image: postgres:15-alpine
+    container_name: task-tide-postgres
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_DB=tasktide
+      - POSTGRES_USER=tasktide
+      - POSTGRES_PASSWORD=tasktide_password
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    restart: unless-stopped
+    profiles:
+      - postgres
+    networks:
+      - task-tide-network
+
+volumes:
+  task-tide-data:
+    driver: local
+  redis-data:
+    driver: local
+  postgres-data:
+    driver: local
+
+networks:
+  task-tide-network:
+    driver: bridge
+    name: task-tide-network

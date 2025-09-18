@@ -1,0 +1,26 @@
+# Task-Tide: Development Dockerfile
+# For local development with live reload
+
+FROM node:18-alpine
+
+# Set working directory
+WORKDIR /app
+
+# Install Python and build tools for native dependencies
+RUN apk add --no-cache python3 make g++
+
+# Install a simple HTTP server for development
+RUN npm install -g http-server
+
+# Copy package files (if we had any)
+# COPY package*.json ./
+# RUN npm install
+
+# Copy source code
+COPY . .
+
+# Expose port 3000
+EXPOSE 3000
+
+# Start development server
+CMD ["http-server", "-p", "3000", "-c-1", "--cors"]

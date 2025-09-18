@@ -54,7 +54,8 @@ A modern, intelligent task management application that combines traditional to-d
 
 ### Prerequisites
 - Modern web browser (Chrome, Firefox, Safari, Edge)
-- No additional dependencies required
+- **For Docker deployment**: Docker and Docker Compose installed
+- **For local development**: No additional dependencies required
 
 ### Installation
 
@@ -78,6 +79,156 @@ A modern, intelligent task management application that combines traditional to-d
    - Explore the calendar view to see your schedule
    - Check the analytics to track your progress
    - Try the AI suggestions for smart recommendations
+
+## 🐳 Docker Deployment
+
+Task-Tide comes with comprehensive Docker support for easy deployment and scaling.
+
+### Quick Start with Docker
+
+```bash
+# Clone the repository
+git clone https://github.com/yourusername/task-tide.git
+cd task-tide
+
+# Deploy with one command
+./deploy.sh
+
+# Access the application at http://localhost:8080
+```
+
+### Docker Commands
+
+#### Using the Makefile (Recommended)
+
+```bash
+# Build and run the application
+make deploy
+
+# Run in development mode
+make dev
+
+# View logs
+make logs
+
+# Stop the application
+make stop
+
+# Check application health
+make health
+
+# Clean up everything
+make clean
+```
+
+#### Using Docker Compose
+
+```bash
+# Production deployment
+docker-compose up -d
+
+# Development mode
+docker-compose --profile dev up -d
+
+# With databases (PostgreSQL + Redis)
+docker-compose --profile postgres --profile redis up -d
+
+# View logs
+docker-compose logs -f task-tide
+
+# Stop all services
+docker-compose down
+```
+
+#### Using the Deployment Script
+
+```bash
+# Deploy the application
+./deploy.sh
+
+# Stop the application
+./deploy.sh stop
+
+# Restart the application
+./deploy.sh restart
+
+# View logs
+./deploy.sh logs
+
+# Check status
+./deploy.sh status
+```
+
+### Docker Configuration
+
+#### Production Setup
+- **Base Image**: Nginx Alpine (lightweight and secure)
+- **Port**: 8080 (configurable)
+- **Health Checks**: Built-in health monitoring
+- **Security**: Non-root user, security headers
+- **Performance**: Gzip compression, caching, optimized nginx config
+
+#### Development Setup
+- **Base Image**: Node.js Alpine
+- **Port**: 3000
+- **Live Reload**: Automatic file watching
+- **Hot Reload**: Instant updates during development
+
+### Environment Variables
+
+```bash
+# Production environment
+NODE_ENV=production
+NGINX_HOST=localhost
+NGINX_PORT=80
+
+# Development environment
+NODE_ENV=development
+```
+
+### Docker Volumes
+
+- `task-tide-data`: Persistent application data
+- `redis-data`: Redis data persistence
+- `postgres-data`: PostgreSQL data persistence
+
+### Health Monitoring
+
+The application includes comprehensive health checks:
+
+```bash
+# Check application health
+curl http://localhost:8080/health
+
+# Docker health check
+docker-compose ps
+```
+
+### Scaling and Production
+
+For production deployment:
+
+1. **Use a reverse proxy** (nginx, traefik, etc.)
+2. **Set up SSL/TLS** certificates
+3. **Configure environment variables**
+4. **Set up monitoring** and logging
+5. **Use external databases** for data persistence
+
+### Troubleshooting
+
+```bash
+# View application logs
+docker-compose logs -f task-tide
+
+# Access container shell
+docker-compose exec task-tide sh
+
+# Check container status
+docker-compose ps
+
+# Restart services
+docker-compose restart task-tide
+```
 
 ## 📖 How to Use
 
