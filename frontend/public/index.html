@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Task-Tide - AI-Powered Task Scheduler</title>
+    <link rel="stylesheet" href="../src/styles/style.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Header -->
+        <header class="app-header">
+            <div class="header-content">
+                <div class="logo">
+                    <i class="fas fa-tasks"></i>
+                    <h1>Task-Tide</h1>
+                </div>
+                <div class="header-actions">
+                    <button class="theme-toggle" id="theme-toggle" title="Toggle dark/light mode">
+                        <i class="fas fa-moon"></i>
+                    </button>
+                    <button class="view-toggle" id="view-toggle" title="Switch view">
+                        <i class="fas fa-calendar-alt"></i>
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Sidebar -->
+            <aside class="sidebar">
+                <nav class="nav-menu">
+                    <button class="nav-item active" data-view="tasks">
+                        <i class="fas fa-list"></i>
+                        <span>Tasks</span>
+                    </button>
+                    <button class="nav-item" data-view="calendar">
+                        <i class="fas fa-calendar"></i>
+                        <span>Calendar</span>
+                    </button>
+                    <button class="nav-item" data-view="analytics">
+                        <i class="fas fa-chart-bar"></i>
+                        <span>Analytics</span>
+                    </button>
+                </nav>
+                
+                <div class="ai-suggestions">
+                    <h3>AI Suggestions</h3>
+                    <div id="ai-suggestions-container">
+                        <!-- AI suggestions will be populated here -->
+                    </div>
+                </div>
+            </aside>
+
+            <!-- Content Area -->
+            <div class="content-area">
+                <!-- Task View -->
+                <div class="view-container" id="tasks-view">
+                    <div class="view-header">
+                        <h2>My Tasks</h2>
+                        <div class="filter-controls">
+                            <select id="category-filter" title="Filter by category">
+                                <option value="all">All Categories</option>
+                                <option value="work">Work</option>
+                                <option value="personal">Personal</option>
+                                <option value="health">Health</option>
+                                <option value="learning">Learning</option>
+                            </select>
+                            <select id="priority-filter" title="Filter by priority">
+                                <option value="all">All Priorities</option>
+                                <option value="high">High</option>
+                                <option value="medium">Medium</option>
+                                <option value="low">Low</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="task-input-section">
+                        <div class="task-form">
+                            <input type="text" id="task-title" placeholder="What needs to be done?">
+                            <textarea id="task-description" placeholder="Add description (optional)"></textarea>
+                            <div class="task-meta">
+                                <select id="task-category" title="Task category">
+                                    <option value="personal">Personal</option>
+                                    <option value="work">Work</option>
+                                    <option value="health">Health</option>
+                                    <option value="learning">Learning</option>
+                                </select>
+                                <select id="task-priority" title="Task priority">
+                                    <option value="medium">Medium Priority</option>
+                                    <option value="high">High Priority</option>
+                                    <option value="low">Low Priority</option>
+                                </select>
+                                <input type="datetime-local" id="task-due-date" title="Task due date and time">
+                                <input type="number" id="task-estimate" placeholder="Est. hours" min="0.5" step="0.5" title="Estimated hours to complete">
+                            </div>
+                            <button class="add-task-btn" onclick="addTask()">
+                                <i class="fas fa-plus"></i>
+                                Add Task
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="tasks-container">
+                        <div class="task-list" id="task-list">
+                            <!-- Tasks will be populated here -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Calendar View -->
+                <div class="view-container hidden" id="calendar-view">
+                    <div class="view-header">
+                        <h2>Calendar</h2>
+                        <div class="calendar-controls">
+                            <button id="prev-month" title="Previous month"><i class="fas fa-chevron-left"></i></button>
+                            <span id="current-month"></span>
+                            <button id="next-month" title="Next month"><i class="fas fa-chevron-right"></i></button>
+                        </div>
+                    </div>
+                    <div class="calendar-container">
+                        <div class="calendar-grid" id="calendar-grid">
+                            <!-- Calendar will be populated here -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Analytics View -->
+                <div class="view-container hidden" id="analytics-view">
+                    <div class="view-header">
+                        <h2>Analytics</h2>
+                    </div>
+                    <div class="analytics-container">
+                        <div class="stats-grid">
+                            <div class="stat-card">
+                                <h3>Tasks Completed</h3>
+                                <div class="stat-value" id="completed-tasks">0</div>
+                            </div>
+                            <div class="stat-card">
+                                <h3>Productivity Score</h3>
+                                <div class="stat-value" id="productivity-score">0%</div>
+                            </div>
+                            <div class="stat-card">
+                                <h3>Time Blocked</h3>
+                                <div class="stat-value" id="time-blocked">0h</div>
+                            </div>
+                            <div class="stat-card">
+                                <h3>AI Suggestions Used</h3>
+                                <div class="stat-value" id="ai-suggestions-used">0</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Task Modal -->
+    <div class="modal" id="task-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="modal-title">Task Details</h3>
+                <button class="close-modal" onclick="closeTaskModal()" title="Close modal">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="task-details" id="task-details">
+                    <!-- Task details will be populated here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="../src/scripts/api.js"></script>
+    <script src="../src/scripts/script.js"></script>
+</body>
+</html>
