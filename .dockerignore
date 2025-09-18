@@ -12,9 +12,8 @@ docker-compose*.yml
 .dockerignore
 
 # Documentation
-README.md
+docs/
 LICENSE
-*.md
 
 # Development files
 .vscode/
@@ -97,7 +96,6 @@ dist
 
 # Gatsby files
 .cache/
-public
 
 # Storybook build outputs
 .out

@@ -16,7 +16,6 @@ COPY . .
 
 # Create a simple build process (minify, optimize, etc.)
 RUN echo "Building Task-Tide application..." && \
-    # Add any build steps here if needed
     echo "Build completed successfully!"
 
 # Stage 2: Production stage with Nginx
@@ -26,10 +25,11 @@ FROM nginx:alpine AS production
 RUN apk add --no-cache curl
 
 # Copy custom nginx configuration
-COPY nginx.conf /etc/nginx/nginx.conf
+COPY config/nginx.conf /etc/nginx/nginx.conf
 
 # Copy built application from builder stage
-COPY --from=builder /app /usr/share/nginx/html
+COPY --from=builder /app/public /usr/share/nginx/html
+COPY --from=builder /app/src /usr/share/nginx/html/src
 
 # Set proper permissions for nginx
 RUN chown -R nginx:nginx /usr/share/nginx/html && \

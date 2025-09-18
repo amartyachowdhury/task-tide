@@ -11,58 +11,58 @@ help: ## Show this help message
 
 # Production commands
 build: ## Build the production Docker image
-	docker-compose build task-tide
+	docker-compose -f config/docker-compose.yml -f config/docker-compose -f config/docker-compose.yml.yml build task-tide
 
 run: ## Run the production application
-	docker-compose up -d task-tide
+	docker-compose -f config/docker-compose.yml up -d task-tide
 	@echo "Task-Tide is running at http://localhost:8080"
 
 stop: ## Stop the production application
-	docker-compose down
+	docker-compose -f config/docker-compose.yml down
 
 restart: ## Restart the production application
-	docker-compose restart task-tide
+	docker-compose -f config/docker-compose.yml restart task-tide
 
 # Development commands
 dev: ## Run in development mode
-	docker-compose --profile dev up -d task-tide-dev
+	docker-compose -f config/docker-compose.yml --profile dev up -d task-tide-dev
 	@echo "Task-Tide dev server is running at http://localhost:3000"
 
 dev-stop: ## Stop development server
-	docker-compose --profile dev down
+	docker-compose -f config/docker-compose.yml --profile dev down
 
 # Database commands (for future use)
 db-up: ## Start PostgreSQL database
-	docker-compose --profile postgres up -d postgres
+	docker-compose -f config/docker-compose.yml --profile postgres up -d postgres
 
 db-down: ## Stop PostgreSQL database
-	docker-compose --profile postgres down
+	docker-compose -f config/docker-compose.yml --profile postgres down
 
 redis-up: ## Start Redis
-	docker-compose --profile redis up -d redis
+	docker-compose -f config/docker-compose.yml --profile redis up -d redis
 
 redis-down: ## Stop Redis
-	docker-compose --profile redis down
+	docker-compose -f config/docker-compose.yml --profile redis down
 
 # Utility commands
 logs: ## Show application logs
-	docker-compose logs -f task-tide
+	docker-compose -f config/docker-compose.yml logs -f task-tide
 
 logs-dev: ## Show development logs
-	docker-compose --profile dev logs -f task-tide-dev
+	docker-compose -f config/docker-compose.yml --profile dev logs -f task-tide-dev
 
 shell: ## Open shell in running container
-	docker-compose exec task-tide sh
+	docker-compose -f config/docker-compose.yml exec task-tide sh
 
 health: ## Check application health
 	curl -f http://localhost:8080/health || echo "Application is not healthy"
 
 # Cleanup commands
 clean: ## Remove containers and images
-	docker-compose down --rmi all --volumes --remove-orphans
+	docker-compose -f config/docker-compose.yml down --rmi all --volumes --remove-orphans
 
 clean-all: ## Remove everything including volumes
-	docker-compose down --rmi all --volumes --remove-orphans
+	docker-compose -f config/docker-compose.yml down --rmi all --volumes --remove-orphans
 	docker system prune -f
 
 # Build and run in one command
@@ -70,7 +70,7 @@ deploy: build run ## Build and run the application
 
 # Full stack (with databases)
 full-stack: ## Run full stack with databases
-	docker-compose --profile postgres --profile redis up -d
+	docker-compose -f config/docker-compose.yml --profile postgres --profile redis up -d
 
 full-stop: ## Stop full stack
-	docker-compose --profile postgres --profile redis down
+	docker-compose -f config/docker-compose.yml --profile postgres --profile redis down

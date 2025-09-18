@@ -54,21 +54,21 @@ check_docker() {
 check_port() {
     if lsof -Pi :${PORT} -sTCP:LISTEN -t >/dev/null; then
         log_warning "Port ${PORT} is already in use. Stopping existing containers..."
-        docker-compose down 2>/dev/null || true
+        docker-compose -f config/docker-compose.yml down 2>/dev/null || true
     fi
 }
 
 # Build the application
 build_app() {
     log_info "Building Task-Tide application..."
-    docker-compose build task-tide
+    docker-compose -f config/docker-compose.yml build task-tide
     log_success "Application built successfully"
 }
 
 # Deploy the application
 deploy_app() {
     log_info "Deploying Task-Tide application..."
-    docker-compose up -d task-tide
+    docker-compose -f config/docker-compose.yml up -d task-tide
     log_success "Application deployed successfully"
 }
 
@@ -102,7 +102,7 @@ show_status() {
     echo ""
     
     # Show container status
-    docker-compose ps
+    docker-compose -f config/docker-compose.yml ps
     
     echo ""
     log_info "Useful commands:"
@@ -141,16 +141,16 @@ case "${1:-deploy}" in
         ;;
     "stop")
         log_info "Stopping Task-Tide application..."
-        docker-compose down
+        docker-compose -f config/docker-compose.yml down
         log_success "Application stopped"
         ;;
     "restart")
         log_info "Restarting Task-Tide application..."
-        docker-compose restart task-tide
+        docker-compose -f config/docker-compose.yml restart task-tide
         log_success "Application restarted"
         ;;
     "logs")
-        docker-compose logs -f task-tide
+        docker-compose -f config/docker-compose.yml logs -f task-tide
         ;;
     "status")
         show_status

@@ -92,7 +92,7 @@ git clone https://github.com/yourusername/task-tide.git
 cd task-tide
 
 # Deploy with one command
-./deploy.sh
+./scripts/deploy.sh
 
 # Access the application at http://localhost:8080
 ```
@@ -125,19 +125,19 @@ make clean
 
 ```bash
 # Production deployment
-docker-compose up -d
+docker-compose -f config/docker-compose.yml -f config/docker-compose -f config/docker-compose.yml.yml up -d
 
 # Development mode
-docker-compose --profile dev up -d
+docker-compose -f config/docker-compose.yml --profile dev up -d
 
 # With databases (PostgreSQL + Redis)
-docker-compose --profile postgres --profile redis up -d
+docker-compose -f config/docker-compose.yml --profile postgres --profile redis up -d
 
 # View logs
-docker-compose logs -f task-tide
+docker-compose -f config/docker-compose.yml logs -f task-tide
 
 # Stop all services
-docker-compose down
+docker-compose -f config/docker-compose.yml down
 ```
 
 #### Using the Deployment Script
@@ -201,7 +201,7 @@ The application includes comprehensive health checks:
 curl http://localhost:8080/health
 
 # Docker health check
-docker-compose ps
+docker-compose -f config/docker-compose.yml ps
 ```
 
 ### Scaling and Production
@@ -218,16 +218,16 @@ For production deployment:
 
 ```bash
 # View application logs
-docker-compose logs -f task-tide
+docker-compose -f config/docker-compose.yml logs -f task-tide
 
 # Access container shell
-docker-compose exec task-tide sh
+docker-compose -f config/docker-compose.yml exec task-tide sh
 
 # Check container status
-docker-compose ps
+docker-compose -f config/docker-compose.yml ps
 
 # Restart services
-docker-compose restart task-tide
+docker-compose -f config/docker-compose.yml restart task-tide
 ```
 
 ## 📖 How to Use
@@ -311,14 +311,30 @@ Default categories include:
 ### Project Structure
 ```
 task-tide/
-├── index.html          # Main HTML structure
-├── style.css           # Complete styling and themes
-├── script.js           # Core application logic
-├── images/             # Icons and assets
-│   ├── checked.png
-│   ├── unchecked.png
-│   └── icon.png
-└── README.md           # This file
+├── config/                    # Configuration files
+│   ├── docker-compose -f config/docker-compose.yml.yml     # Docker orchestration
+│   ├── Dockerfile             # Production Docker image
+│   ├── Dockerfile.dev         # Development Docker image
+│   └── nginx.conf             # Nginx configuration
+├── docs/                      # Documentation
+│   ├── README.md              # Main project documentation
+│   └── PROJECT_STRUCTURE.md   # Project structure guide
+├── public/                    # Public web assets
+│   └── index.html             # Main HTML file
+├── scripts/                   # Build and deployment scripts
+│   ├── deploy.sh              # Deployment script
+│   └── Makefile               # Build automation
+├── src/                       # Source code
+│   ├── assets/                # Static assets
+│   │   └── images/            # Image files
+│   ├── scripts/               # JavaScript files
+│   │   └── script.js          # Main application logic
+│   └── styles/                # CSS files
+│       └── style.css          # Main stylesheet
+├── .dockerignore              # Docker ignore file
+├── .gitignore                 # Git ignore file
+├── LICENSE                    # MIT License
+└── package.json               # Node.js package configuration
 ```
 
 ### Key Components

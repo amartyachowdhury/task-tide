@@ -7,8 +7,8 @@ services:
   # Main Task-Tide application
   task-tide:
     build:
-      context: .
-      dockerfile: Dockerfile
+      context: ..
+      dockerfile: config/Dockerfile
       target: production
     container_name: task-tide-app
     ports:
@@ -37,8 +37,8 @@ services:
   # Development service (optional)
   task-tide-dev:
     build:
-      context: .
-      dockerfile: Dockerfile.dev
+      context: ..
+      dockerfile: config/Dockerfile.dev
     container_name: task-tide-dev
     ports:
       - "3000:3000"
