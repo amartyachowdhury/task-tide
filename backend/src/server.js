@@ -1,3 +1,4 @@
+const fs = require('fs');
 const path = require('path');
 const express = require('express');
 const cors = require('cors');
@@ -10,7 +11,20 @@ const { authenticate } = require('./middleware/authenticate');
 
 const app = express();
 
-const repoRoot = path.join(__dirname, '../..');
+/** Monorepo: backend/src → repo root. Docker backend image: static files live under /app next to src. */
+function resolveRepoRoot() {
+  const twoUp = path.join(__dirname, '../..');
+  if (fs.existsSync(path.join(twoUp, 'landing'))) {
+    return twoUp;
+  }
+  const oneUp = path.join(__dirname, '..');
+  if (fs.existsSync(path.join(oneUp, 'landing'))) {
+    return oneUp;
+  }
+  return oneUp;
+}
+
+const repoRoot = resolveRepoRoot();
 const landingDir = path.join(repoRoot, 'landing');
 const frontendPublicDir = path.join(repoRoot, 'frontend/public');
 const frontendSrcDir = path.join(repoRoot, 'frontend/src');

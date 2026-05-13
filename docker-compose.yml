@@ -1,8 +1,6 @@
 # Task-Tide: AI-Powered Task Scheduler
 # Docker Compose configuration for full-stack deployment
 
-version: '3.8'
-
 services:
   # Backend API service
   backend:

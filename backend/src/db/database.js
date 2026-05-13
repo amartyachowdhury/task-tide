@@ -7,9 +7,13 @@ let SQL = null;
 let db = null;
 let openPromise = null;
 
-/** Repo-root `database/` directory (this file lives in backend/src/db). */
+/** Repo `database/` directory: monorepo (`task-tide/database`) or backend image (`/app/database`). */
 function repoDatabaseDir() {
-  return path.join(__dirname, '../../../database');
+  const monorepo = path.join(__dirname, '../../../database');
+  if (fs.existsSync(monorepo)) {
+    return monorepo;
+  }
+  return path.join(__dirname, '../../database');
 }
 
 function getSqlitePath() {

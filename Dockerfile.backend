@@ -16,6 +16,9 @@ RUN npm install --only=production && npm cache clean --force
 # Copy source and tracked database directory (runtime files are volume-mounted)
 COPY backend/src ./src
 COPY database ./database
+COPY landing ./landing
+COPY frontend/public ./frontend/public
+COPY frontend/src ./frontend/src
 
 # Stage 2: Production stage
 FROM node:18-alpine AS production
@@ -34,6 +37,8 @@ RUN addgroup -g 1001 -S nodejs && \
 COPY --from=builder --chown=nodejs:nodejs /app/node_modules ./node_modules
 COPY --from=builder --chown=nodejs:nodejs /app/src ./src
 COPY --from=builder --chown=nodejs:nodejs /app/database ./database
+COPY --from=builder --chown=nodejs:nodejs /app/landing ./landing
+COPY --from=builder --chown=nodejs:nodejs /app/frontend ./frontend
 COPY --from=builder --chown=nodejs:nodejs /app/package*.json ./
 
 # Writable database directory (matches repo-root database/ layout)
