@@ -13,7 +13,7 @@
     "build": "npm run build:backend && npm run build:frontend",
     "build:backend": "cd backend && npm run build",
     "build:frontend": "cd frontend && npm run build",
-    "install:all": "npm install && cd backend && npm install && cd ../frontend && npm install",
+    "install:all": "npm ci && npm ci --prefix backend && npm ci --prefix frontend",
     "docker:build": "docker-compose build",
     "docker:up": "docker-compose up -d",
     "docker:down": "docker-compose down",
@@ -40,12 +40,12 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/yourusername/task-tide.git"
+    "url": "https://github.com/amartyachowdhury/task-tide.git"
   },
   "bugs": {
-    "url": "https://github.com/yourusername/task-tide/issues"
+    "url": "https://github.com/amartyachowdhury/task-tide/issues"
   },
-  "homepage": "https://github.com/yourusername/task-tide#readme",
+  "homepage": "https://github.com/amartyachowdhury/task-tide#readme",
   "engines": {
     "node": ">=18.0.0"
   },

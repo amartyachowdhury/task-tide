@@ -6,6 +6,7 @@
 [![Docker](https://img.shields.io/badge/Docker-Containerized-blue)](https://www.docker.com/)
 [![Node.js](https://img.shields.io/badge/Node.js-18+-green)](https://nodejs.org/)
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![CI](https://github.com/amartyachowdhury/task-tide/actions/workflows/ci.yml/badge.svg)](https://github.com/amartyachowdhury/task-tide/actions/workflows/ci.yml)
 
 ---
 
@@ -215,6 +216,21 @@ GET    /health           # Service health status
 - **Keyboard Navigation**: Full keyboard accessibility
 - **Screen Reader Support**: ARIA labels and semantic HTML
 - **Color Contrast**: High contrast ratios for readability
+
+### Continuous integration
+
+[GitHub Actions](https://github.com/amartyachowdhury/task-tide/actions/workflows/ci.yml) runs on every push and pull request to `main` or `master`: `npm ci` at the repo root, in `backend/`, and in `frontend/`, then ESLint (backend), Jest (backend), and Playwright Chromium E2E (frontend).
+
+**Match CI locally** (Node 20 recommended; see `.nvmrc`):
+
+```bash
+npm run install:all
+npm run lint
+npm run test:backend
+cd frontend && npx playwright install --with-deps chromium && npm test
+```
+
+Or from the repo root after installs: `npm test` (runs backend tests then Playwright).
 
 ---
 
