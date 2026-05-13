@@ -122,6 +122,33 @@ function clearAll(organizationId) {
   getDb().runParameterized('DELETE FROM tasks WHERE organization_id = ?', [organizationId]);
 }
 
+function bulkDeleteByIds(ids, organizationId) {
+  if (!ids || ids.length === 0) return 0;
+  const api = getDb();
+  const placeholders = ids.map(() => '?').join(', ');
+  const sql = `DELETE FROM tasks WHERE organization_id = ? AND id IN (${placeholders})`;
+  api.runParameterized(sql, [organizationId, ...ids]);
+  return ids.length;
+}
+
+function bulkSetCompleted(ids, organizationId, completed) {
+  if (!ids || ids.length === 0) return 0;
+  const api = getDb();
+  const now = new Date().toISOString();
+  const completedInt = completed ? 1 : 0;
+  const completedAt = completed ? now : null;
+  const placeholders = ids.map(() => '?').join(', ');
+  const sql = `
+    UPDATE tasks SET
+      completed = ?,
+      completed_at = ?,
+      updated_at = ?
+    WHERE organization_id = ? AND id IN (${placeholders})
+  `;
+  api.runParameterized(sql, [completedInt, completedAt, now, organizationId, ...ids]);
+  return ids.length;
+}
+
 module.exports = {
   findAll,
   findById,
@@ -129,5 +156,7 @@ module.exports = {
   updateTask,
   deleteById,
   clearAll,
+  bulkDeleteByIds,
+  bulkSetCompleted,
   rowToTask
 };

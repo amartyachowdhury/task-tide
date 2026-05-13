@@ -76,10 +76,22 @@ app.use(morgan('combined'));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
-// Health check endpoint
+// Health check endpoint (database readiness without failing legacy probes)
 app.get('/health', (req, res) => {
+  let database = 'unknown';
+  try {
+    const { getDb } = require('./db/database');
+    const row = getDb().getRow('SELECT 1 AS ok');
+    database = row != null && Number(row.ok) === 1 ? 'ok' : 'error';
+  } catch {
+    database = 'error';
+  }
+
+  const ready = database === 'ok';
   res.status(200).json({
-    status: 'healthy',
+    status: ready ? 'healthy' : 'degraded',
+    ready,
+    checks: { database },
     timestamp: new Date().toISOString(),
     service: 'task-tide-backend',
     version: '1.0.0'

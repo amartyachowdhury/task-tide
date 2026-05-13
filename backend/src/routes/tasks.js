@@ -3,6 +3,7 @@ const express = require('express');
 const router = express.Router();
 const Joi = require('joi');
 const taskRepository = require('../db/taskRepository');
+const { validateTaskIdParam } = require('../middleware/validateTaskId');
 
 // Validation schemas
 const taskSchema = Joi.object({
@@ -25,15 +26,31 @@ const updateTaskSchema = Joi.object({
   completed: Joi.boolean()
 });
 
+const listQuerySchema = Joi.object({
+  category: Joi.string().valid('all', 'work', 'personal', 'health', 'learning'),
+  priority: Joi.string().valid('all', 'high', 'medium', 'low'),
+  completed: Joi.string().valid('true', 'false'),
+  q: Joi.string().max(200).allow(''),
+  limit: Joi.number().integer().min(1).max(500).default(500),
+  offset: Joi.number().integer().min(0).max(100_000).default(0)
+});
+
+const bulkIdsSchema = Joi.object({
+  ids: Joi.array().items(Joi.string().uuid()).min(1).max(100).required()
+});
+
+const bulkSetCompletedSchema = Joi.object({
+  ids: Joi.array().items(Joi.string().uuid()).min(1).max(100).required(),
+  completed: Joi.boolean().required()
+});
+
 // Helper function to calculate AI score
 const calculateAIScore = (task) => {
   let score = 0;
 
-  // Priority scoring
   const priorityScores = { high: 30, medium: 20, low: 10 };
   score += priorityScores[task.priority];
 
-  // Due date urgency
   if (task.dueDate) {
     const daysUntilDue = Math.ceil((new Date(task.dueDate) - new Date()) / (1000 * 60 * 60 * 24));
     if (daysUntilDue <= 1) score += 20;
@@ -41,7 +58,6 @@ const calculateAIScore = (task) => {
     else if (daysUntilDue <= 7) score += 10;
   }
 
-  // Title keywords
   const urgentKeywords = ['urgent', 'asap', 'immediately', 'deadline', 'critical'];
   const titleLower = task.title.toLowerCase();
   if (urgentKeywords.some((keyword) => titleLower.includes(keyword))) {
@@ -59,15 +75,27 @@ function normalizeTaskPayload(value) {
   return out;
 }
 
-// GET /api/tasks - Get all tasks
+// GET /api/tasks - List tasks (validated query + pagination)
 router.get('/', (req, res) => {
   try {
+    const { error, value: query } = listQuerySchema.validate(req.query, {
+      stripUnknown: true,
+      convert: true
+    });
+
+    if (error) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid query parameters',
+        details: error.details.map((d) => d.message)
+      });
+    }
+
     const { organizationId } = req.auth;
-    const { category, priority, completed, q } = req.query;
+    const { category, priority, completed, q, limit, offset } = query;
 
     let filteredTasks = [...taskRepository.findAll(organizationId)];
 
-    // Apply filters
     if (category && category !== 'all') {
       filteredTasks = filteredTasks.filter((task) => task.category === category);
     }
@@ -91,7 +119,6 @@ router.get('/', (req, res) => {
       });
     }
 
-    // Sort by AI score and due date
     filteredTasks.sort((a, b) => {
       if (a.completed !== b.completed) {
         return a.completed ? 1 : -1;
@@ -105,19 +132,81 @@ router.get('/', (req, res) => {
       return new Date(b.createdAt) - new Date(a.createdAt);
     });
 
+    const total = filteredTasks.length;
+    const page = filteredTasks.slice(offset, offset + limit);
+
     res.json({
       success: true,
-      data: filteredTasks,
-      count: filteredTasks.length
+      data: page,
+      count: page.length,
+      total,
+      limit,
+      offset
     });
-  } catch (error) {
+  } catch (err) {
     res.status(500).json({
       success: false,
       error: 'Failed to fetch tasks',
-      message: error.message
+      message: err.message
     });
   }
 });
+
+router.post('/bulk/delete', (req, res) => {
+  try {
+    const { error, value } = bulkIdsSchema.validate(req.body);
+    if (error) {
+      return res.status(400).json({
+        success: false,
+        error: 'Validation error',
+        details: error.details.map((d) => d.message)
+      });
+    }
+    const ids = [...new Set(value.ids)];
+    const { organizationId } = req.auth;
+    taskRepository.bulkDeleteByIds(ids, organizationId);
+    res.json({
+      success: true,
+      data: { deleted: ids.length },
+      message: `${ids.length} task(s) deleted`
+    });
+  } catch (err) {
+    res.status(500).json({
+      success: false,
+      error: 'Failed to delete tasks',
+      message: err.message
+    });
+  }
+});
+
+router.post('/bulk/set-completed', (req, res) => {
+  try {
+    const { error, value } = bulkSetCompletedSchema.validate(req.body);
+    if (error) {
+      return res.status(400).json({
+        success: false,
+        error: 'Validation error',
+        details: error.details.map((d) => d.message)
+      });
+    }
+    const ids = [...new Set(value.ids)];
+    const { organizationId } = req.auth;
+    taskRepository.bulkSetCompleted(ids, organizationId, value.completed);
+    res.json({
+      success: true,
+      data: { updated: ids.length, completed: value.completed },
+      message: `${ids.length} task(s) updated`
+    });
+  } catch (err) {
+    res.status(500).json({
+      success: false,
+      error: 'Failed to update tasks',
+      message: err.message
+    });
+  }
+});
+
+router.param('id', validateTaskIdParam);
 
 // GET /api/tasks/:id - Get single task
 router.get('/:id', (req, res) => {
@@ -135,11 +224,11 @@ router.get('/:id', (req, res) => {
       success: true,
       data: task
     });
-  } catch (error) {
+  } catch (err) {
     res.status(500).json({
       success: false,
       error: 'Failed to fetch task',
-      message: error.message
+      message: err.message
     });
   }
 });
@@ -177,11 +266,11 @@ router.post('/', (req, res) => {
       data: task,
       message: 'Task created successfully'
     });
-  } catch (error) {
+  } catch (err) {
     res.status(500).json({
       success: false,
       error: 'Failed to create task',
-      message: error.message
+      message: err.message
     });
   }
 });
@@ -229,11 +318,11 @@ router.put('/:id', (req, res) => {
       data: updatedTask,
       message: 'Task updated successfully'
     });
-  } catch (error) {
+  } catch (err) {
     res.status(500).json({
       success: false,
       error: 'Failed to update task',
-      message: error.message
+      message: err.message
     });
   }
 });
@@ -257,11 +346,11 @@ router.delete('/:id', (req, res) => {
       data: existing,
       message: 'Task deleted successfully'
     });
-  } catch (error) {
+  } catch (err) {
     res.status(500).json({
       success: false,
       error: 'Failed to delete task',
-      message: error.message
+      message: err.message
     });
   }
 });
@@ -297,11 +386,11 @@ router.patch('/:id/toggle', (req, res) => {
       data: updatedTask,
       message: `Task marked as ${updatedTask.completed ? 'completed' : 'incomplete'}`
     });
-  } catch (error) {
+  } catch (err) {
     res.status(500).json({
       success: false,
       error: 'Failed to toggle task',
-      message: error.message
+      message: err.message
     });
   }
 });

@@ -129,7 +129,38 @@ class TaskTideAPI {
         const queryString = queryParams.toString();
         const endpoint = queryString ? `/tasks?${queryString}` : '/tasks';
 
-        return this.request(endpoint);
+        let lastErr;
+        for (let attempt = 0; attempt < 3; attempt += 1) {
+            try {
+                return await this.request(endpoint);
+            } catch (e) {
+                lastErr = e;
+                const m = String(e && e.message ? e.message : '');
+                const retriable =
+                    /status: (502|503|504)/i.test(m) ||
+                    /Failed to fetch/i.test(m) ||
+                    /NetworkError/i.test(m);
+                if (!retriable || attempt === 2) {
+                    throw e;
+                }
+                await new Promise((r) => setTimeout(r, 250 * (attempt + 1)));
+            }
+        }
+        throw lastErr;
+    }
+
+    async bulkDeleteTasks(ids) {
+        return this.request('/tasks/bulk/delete', {
+            method: 'POST',
+            body: JSON.stringify({ ids })
+        });
+    }
+
+    async bulkSetTasksCompleted(ids, completed) {
+        return this.request('/tasks/bulk/set-completed', {
+            method: 'POST',
+            body: JSON.stringify({ ids, completed })
+        });
     }
 
     async getTask(id) {
