@@ -10,6 +10,39 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
+    <div id="auth-gate" class="auth-gate hidden" aria-hidden="true">
+        <div class="auth-gate-backdrop"></div>
+        <div class="auth-gate-card" role="dialog" aria-labelledby="auth-gate-title">
+            <h2 id="auth-gate-title">Sign in to sync</h2>
+            <p class="auth-gate-hint">Log in or create a workspace to use the hosted API.</p>
+            <form id="auth-login-form" class="auth-form">
+                <label class="auth-label">Email
+                    <input type="email" id="login-email" required autocomplete="email">
+                </label>
+                <label class="auth-label">Password
+                    <input type="password" id="login-password" required minlength="8" autocomplete="current-password">
+                </label>
+                <button type="submit" class="auth-submit">Log in</button>
+                <p id="auth-login-error" class="auth-error" role="alert"></p>
+            </form>
+            <hr class="auth-divider">
+            <h3 class="auth-subtitle">New workspace</h3>
+            <form id="auth-register-form" class="auth-form">
+                <label class="auth-label">Email
+                    <input type="email" id="reg-email" required autocomplete="email">
+                </label>
+                <label class="auth-label">Password (min 8 characters)
+                    <input type="password" id="reg-password" required minlength="8" autocomplete="new-password">
+                </label>
+                <label class="auth-label">Workspace name
+                    <input type="text" id="reg-org" required maxlength="120" placeholder="e.g. Northside Clinic">
+                </label>
+                <button type="submit" class="auth-submit auth-submit-secondary">Create account</button>
+                <p id="auth-register-error" class="auth-error" role="alert"></p>
+            </form>
+        </div>
+    </div>
+
     <div class="app-container">
         <!-- Header -->
         <header class="app-header">

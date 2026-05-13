@@ -27,7 +27,7 @@ module.exports = defineConfig({
   webServer: [
     {
       cwd: backendDir,
-      command: `PORT=${e2eApiPort} NODE_ENV=development DISABLE_TASK_PERSISTENCE=1 node src/server.js`,
+      command: `PORT=${e2eApiPort} NODE_ENV=test DISABLE_TASK_PERSISTENCE=1 node src/server.js`,
       url: `http://127.0.0.1:${e2eApiPort}/health`,
       timeout: 45_000,
       reuseExistingServer: false

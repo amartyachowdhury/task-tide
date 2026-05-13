@@ -22,6 +22,32 @@ describe('Task-Tide API', () => {
     });
   });
 
+  describe('Auth', () => {
+    it('registers a workspace and accepts Bearer token on tasks', async () => {
+      const email = `int-${Date.now()}@example.com`;
+      const reg = await request(app)
+        .post('/api/auth/register')
+        .send({
+          email,
+          password: 'password12',
+          organizationName: 'Integration Org'
+        })
+        .expect(201);
+
+      expect(reg.body.success).toBe(true);
+      const token = reg.body.data.token;
+      expect(token).toBeDefined();
+
+      const tasks = await request(app)
+        .get('/api/tasks')
+        .set('Authorization', `Bearer ${token}`)
+        .expect(200);
+
+      expect(tasks.body.success).toBe(true);
+      expect(Array.isArray(tasks.body.data)).toBe(true);
+    });
+  });
+
   describe('Tasks + shared store with AI', () => {
     it('creates a task and exposes it to AI analytics', async () => {
       const create = await request(app)

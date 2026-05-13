@@ -1,3 +1,4 @@
+const path = require('path');
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
@@ -5,8 +6,14 @@ const morgan = require('morgan');
 require('dotenv').config({ quiet: true });
 
 const { openDatabase } = require('./db/database');
+const { authenticate } = require('./middleware/authenticate');
 
 const app = express();
+
+const repoRoot = path.join(__dirname, '../..');
+const landingDir = path.join(repoRoot, 'landing');
+const frontendPublicDir = path.join(repoRoot, 'frontend/public');
+const frontendSrcDir = path.join(repoRoot, 'frontend/src');
 const PORT = process.env.PORT || 3001;
 
 app.use(async (req, res, next) => {
@@ -18,6 +25,7 @@ app.use(async (req, res, next) => {
   }
 });
 
+const authRoutes = require('./routes/auth');
 const taskRoutes = require('./routes/tasks');
 const aiRoutes = require('./routes/ai');
 const { errorHandler } = require('./middleware/errorHandler');
@@ -78,22 +86,13 @@ app.get('/health', (req, res) => {
   });
 });
 
-// API Routes
-app.use('/api/tasks', taskRoutes);
-app.use('/api/ai', aiRoutes);
+app.use('/api/auth', authRoutes);
+app.use('/api/tasks', authenticate, taskRoutes);
+app.use('/api/ai', authenticate, aiRoutes);
 
-// Root endpoint
-app.get('/', (req, res) => {
-  res.json({
-    message: 'Task-Tide Backend API',
-    version: '1.0.0',
-    endpoints: {
-      health: '/health',
-      tasks: '/api/tasks',
-      ai: '/api/ai'
-    }
-  });
-});
+app.use('/', express.static(landingDir, { index: 'index.html' }));
+app.use('/public', express.static(frontendPublicDir));
+app.use('/src', express.static(frontendSrcDir));
 
 // 404 handler (must be registered before the error handler)
 app.use((req, res) => {

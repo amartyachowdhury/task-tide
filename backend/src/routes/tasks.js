@@ -62,9 +62,10 @@ function normalizeTaskPayload(value) {
 // GET /api/tasks - Get all tasks
 router.get('/', (req, res) => {
   try {
+    const { organizationId } = req.auth;
     const { category, priority, completed, q } = req.query;
 
-    let filteredTasks = [...taskRepository.findAll()];
+    let filteredTasks = [...taskRepository.findAll(organizationId)];
 
     // Apply filters
     if (category && category !== 'all') {
@@ -121,7 +122,7 @@ router.get('/', (req, res) => {
 // GET /api/tasks/:id - Get single task
 router.get('/:id', (req, res) => {
   try {
-    const task = taskRepository.findById(req.params.id);
+    const task = taskRepository.findById(req.params.id, req.auth.organizationId);
 
     if (!task) {
       return res.status(404).json({
@@ -169,7 +170,7 @@ router.post('/', (req, res) => {
       task.completedAt = new Date().toISOString();
     }
 
-    taskRepository.insert(task);
+    taskRepository.insert(task, req.auth.organizationId);
 
     res.status(201).json({
       success: true,
@@ -188,7 +189,7 @@ router.post('/', (req, res) => {
 // PUT /api/tasks/:id - Update task
 router.put('/:id', (req, res) => {
   try {
-    const existing = taskRepository.findById(req.params.id);
+    const existing = taskRepository.findById(req.params.id, req.auth.organizationId);
 
     if (!existing) {
       return res.status(404).json({
@@ -221,7 +222,7 @@ router.put('/:id', (req, res) => {
       aiScore: calculateAIScore(merged)
     };
 
-    taskRepository.updateTask(updatedTask);
+    taskRepository.updateTask(updatedTask, req.auth.organizationId);
 
     res.json({
       success: true,
@@ -240,7 +241,7 @@ router.put('/:id', (req, res) => {
 // DELETE /api/tasks/:id - Delete task
 router.delete('/:id', (req, res) => {
   try {
-    const existing = taskRepository.findById(req.params.id);
+    const existing = taskRepository.findById(req.params.id, req.auth.organizationId);
 
     if (!existing) {
       return res.status(404).json({
@@ -249,7 +250,7 @@ router.delete('/:id', (req, res) => {
       });
     }
 
-    taskRepository.deleteById(req.params.id);
+    taskRepository.deleteById(req.params.id, req.auth.organizationId);
 
     res.json({
       success: true,
@@ -268,7 +269,7 @@ router.delete('/:id', (req, res) => {
 // PATCH /api/tasks/:id/toggle - Toggle task completion
 router.patch('/:id/toggle', (req, res) => {
   try {
-    const existing = taskRepository.findById(req.params.id);
+    const existing = taskRepository.findById(req.params.id, req.auth.organizationId);
 
     if (!existing) {
       return res.status(404).json({
@@ -289,7 +290,7 @@ router.patch('/:id/toggle', (req, res) => {
       delete updatedTask.completedAt;
     }
 
-    taskRepository.updateTask(updatedTask);
+    taskRepository.updateTask(updatedTask, req.auth.organizationId);
 
     res.json({
       success: true,

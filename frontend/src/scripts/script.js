@@ -28,6 +28,99 @@ class TaskTideApp {
         return base;
     }
 
+    async ensureAuthenticated(api) {
+        const token = api.getStoredToken();
+        if (token) {
+            try {
+                const me = await api.authMe();
+                if (me && me.success) return;
+            } catch {
+                /* fall through */
+            }
+            api.clearStoredToken();
+        }
+
+        try {
+            const probe = await api.getTasks({});
+            if (probe && probe.success) return;
+        } catch {
+            /* need interactive auth */
+        }
+
+        const gate = document.getElementById('auth-gate');
+        const loginErr = document.getElementById('auth-login-error');
+        const regErr = document.getElementById('auth-register-error');
+        if (gate) {
+            gate.classList.remove('hidden');
+            gate.setAttribute('aria-hidden', 'false');
+        }
+
+        return new Promise((resolve, reject) => {
+            const loginForm = document.getElementById('auth-login-form');
+            const regForm = document.getElementById('auth-register-form');
+
+            const finishSuccess = () => {
+                if (loginForm) loginForm.removeEventListener('submit', onLogin);
+                if (regForm) regForm.removeEventListener('submit', onRegister);
+                if (gate) {
+                    gate.classList.add('hidden');
+                    gate.setAttribute('aria-hidden', 'true');
+                }
+                if (loginErr) loginErr.textContent = '';
+                if (regErr) regErr.textContent = '';
+                resolve();
+            };
+
+            const onLogin = async (ev) => {
+                ev.preventDefault();
+                if (loginErr) loginErr.textContent = '';
+                const email = document.getElementById('login-email')?.value?.trim();
+                const password = document.getElementById('login-password')?.value;
+                try {
+                    const res = await api.authLogin({ email, password });
+                    if (res.success && res.data && res.data.token) {
+                        api.setStoredToken(res.data.token);
+                        finishSuccess();
+                    } else if (loginErr) {
+                        loginErr.textContent = res.error || 'Login failed';
+                    }
+                } catch (e) {
+                    if (loginErr) loginErr.textContent = e.message || 'Login failed';
+                }
+            };
+
+            const onRegister = async (ev) => {
+                ev.preventDefault();
+                if (regErr) regErr.textContent = '';
+                const email = document.getElementById('reg-email')?.value?.trim();
+                const password = document.getElementById('reg-password')?.value;
+                const organizationName = document.getElementById('reg-org')?.value?.trim();
+                try {
+                    const res = await api.authRegister({
+                        email,
+                        password,
+                        organizationName: organizationName || 'My workspace'
+                    });
+                    if (res.success && res.data && res.data.token) {
+                        api.setStoredToken(res.data.token);
+                        finishSuccess();
+                    } else if (regErr) {
+                        regErr.textContent = res.error || 'Registration failed';
+                    }
+                } catch (e) {
+                    if (regErr) regErr.textContent = e.message || 'Registration failed';
+                }
+            };
+
+            if (!loginForm && !regForm) {
+                reject(new Error('Auth UI missing'));
+                return;
+            }
+            if (loginForm) loginForm.addEventListener('submit', onLogin);
+            if (regForm) regForm.addEventListener('submit', onRegister);
+        });
+    }
+
     async bootstrap() {
         const api = typeof window !== 'undefined' ? window.taskTideAPI : null;
         try {
@@ -38,9 +131,10 @@ class TaskTideApp {
 
         if (this.useApi) {
             try {
+                await this.ensureAuthenticated(api);
                 await this.reloadTasksFromApi();
             } catch (err) {
-                console.warn('[TaskTide] API unreachable, using local storage', err);
+                console.warn('[TaskTide] API unreachable or auth failed, using local storage', err);
                 this.useApi = false;
                 this.loadTasksFromLocal();
             }

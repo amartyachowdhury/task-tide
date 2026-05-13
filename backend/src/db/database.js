@@ -1,6 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const initSqlJs = require('sql.js');
+const { DEFAULT_TENANT_ORG_ID } = require('../config/saas');
 
 let SQL = null;
 let db = null;
@@ -68,6 +69,80 @@ function getRow(sql, params = []) {
   return row;
 }
 
+function ensureDefaultTenantOrg() {
+  const existing = getRow('SELECT id FROM organizations WHERE id = ?', [DEFAULT_TENANT_ORG_ID]);
+  if (existing) return DEFAULT_TENANT_ORG_ID;
+  const now = new Date().toISOString();
+  runParameterized('INSERT INTO organizations (id, name, created_at) VALUES (?, ?, ?)', [
+    DEFAULT_TENANT_ORG_ID,
+    'Workspace',
+    now
+  ]);
+  return DEFAULT_TENANT_ORG_ID;
+}
+
+function ensureSaaSBaseTables() {
+  db.run(`
+    CREATE TABLE IF NOT EXISTS organizations (
+      id TEXT PRIMARY KEY NOT NULL,
+      name TEXT NOT NULL,
+      created_at TEXT NOT NULL
+    );
+  `);
+  db.run(`
+    CREATE TABLE IF NOT EXISTS users (
+      id TEXT PRIMARY KEY NOT NULL,
+      email TEXT NOT NULL UNIQUE,
+      password_hash TEXT NOT NULL,
+      created_at TEXT NOT NULL
+    );
+  `);
+  db.run(`
+    CREATE TABLE IF NOT EXISTS organization_users (
+      organization_id TEXT NOT NULL,
+      user_id TEXT NOT NULL,
+      role TEXT NOT NULL DEFAULT 'member',
+      PRIMARY KEY (organization_id, user_id)
+    );
+  `);
+}
+
+function taskColumnNames() {
+  return allRows('PRAGMA table_info(tasks)').map((c) => c.name);
+}
+
+function ensureTasksTable() {
+  db.run(`
+    CREATE TABLE IF NOT EXISTS tasks (
+      id TEXT PRIMARY KEY NOT NULL,
+      title TEXT NOT NULL,
+      description TEXT NOT NULL DEFAULT '',
+      category TEXT NOT NULL,
+      priority TEXT NOT NULL,
+      due_date TEXT,
+      estimate REAL NOT NULL DEFAULT 1,
+      completed INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      ai_score INTEGER NOT NULL DEFAULT 0,
+      completed_at TEXT,
+      organization_id TEXT
+    );
+  `);
+}
+
+function migrateTasksOrganizationId() {
+  const cols = taskColumnNames();
+  if (!cols.includes('organization_id')) {
+    runExec('ALTER TABLE tasks ADD COLUMN organization_id TEXT');
+  }
+  const orgId = ensureDefaultTenantOrg();
+  runParameterized(
+    'UPDATE tasks SET organization_id = ? WHERE organization_id IS NULL OR organization_id = ?',
+    [orgId, '']
+  );
+}
+
 function migrateLegacyJsonIfEmpty() {
   if (process.env.NODE_ENV === 'test' && !process.env.TASK_TIDE_DATA_FILE) {
     return;
@@ -83,11 +158,13 @@ function migrateLegacyJsonIfEmpty() {
     const parsed = JSON.parse(raw);
     if (!Array.isArray(parsed) || parsed.length === 0) return;
 
+    const orgId = ensureDefaultTenantOrg();
+
     const insertSql = `
       INSERT INTO tasks (
         id, title, description, category, priority, due_date, estimate,
-        completed, created_at, updated_at, ai_score, completed_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        completed, created_at, updated_at, ai_score, completed_at, organization_id
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `;
 
     for (const item of parsed) {
@@ -104,7 +181,8 @@ function migrateLegacyJsonIfEmpty() {
         item.createdAt || new Date().toISOString(),
         item.updatedAt || new Date().toISOString(),
         Number(item.aiScore) || 0,
-        item.completedAt != null ? String(item.completedAt) : null
+        item.completedAt != null ? String(item.completedAt) : null,
+        orgId
       ]);
     }
 
@@ -119,22 +197,9 @@ function migrateLegacyJsonIfEmpty() {
 }
 
 function createSchema() {
-  db.run(`
-    CREATE TABLE IF NOT EXISTS tasks (
-      id TEXT PRIMARY KEY NOT NULL,
-      title TEXT NOT NULL,
-      description TEXT NOT NULL DEFAULT '',
-      category TEXT NOT NULL,
-      priority TEXT NOT NULL,
-      due_date TEXT,
-      estimate REAL NOT NULL DEFAULT 1,
-      completed INTEGER NOT NULL DEFAULT 0,
-      created_at TEXT NOT NULL,
-      updated_at TEXT NOT NULL,
-      ai_score INTEGER NOT NULL DEFAULT 0,
-      completed_at TEXT
-    );
-  `);
+  ensureSaaSBaseTables();
+  ensureTasksTable();
+  migrateTasksOrganizationId();
 }
 
 async function openDatabase() {
