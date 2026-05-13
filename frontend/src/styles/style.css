@@ -285,6 +285,36 @@ body {
     cursor: pointer;
 }
 
+.filter-controls .task-search-input {
+    min-width: 10rem;
+    flex: 1 1 12rem;
+    max-width: 22rem;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    padding: 0.5rem 0.75rem;
+    color: var(--text-primary);
+    font-size: 0.875rem;
+}
+
+.filter-controls .btn-export-tasks {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    padding: 0.5rem 0.75rem;
+    color: var(--text-primary);
+    font-size: 0.875rem;
+    cursor: pointer;
+}
+
+.filter-controls .btn-export-tasks:hover {
+    border-color: var(--accent-color);
+    color: var(--accent-color);
+}
+
 /* Task Form */
 .task-input-section {
     background: var(--bg-secondary);

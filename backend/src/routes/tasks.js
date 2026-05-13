@@ -55,7 +55,7 @@ const calculateAIScore = (task) => {
 // GET /api/tasks - Get all tasks
 router.get('/', (req, res) => {
   try {
-    const { category, priority, completed } = req.query;
+    const { category, priority, completed, q } = req.query;
     
     let filteredTasks = [...tasks];
     
@@ -71,6 +71,16 @@ router.get('/', (req, res) => {
     if (completed !== undefined) {
       const isCompleted = completed === 'true';
       filteredTasks = filteredTasks.filter(task => task.completed === isCompleted);
+    }
+
+    const search = typeof q === 'string' ? q.trim() : '';
+    if (search) {
+      const needle = search.toLowerCase();
+      filteredTasks = filteredTasks.filter(task => {
+        const title = (task.title || '').toLowerCase();
+        const description = (task.description || '').toLowerCase();
+        return title.includes(needle) || description.includes(needle);
+      });
     }
     
     // Sort by AI score and due date

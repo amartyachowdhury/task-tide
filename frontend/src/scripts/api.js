@@ -11,6 +11,11 @@ class TaskTideAPI {
 
     static resolveApiBaseUrl() {
         if (typeof document !== 'undefined') {
+            const injected =
+                typeof window !== 'undefined' && window.__TASK_TIDE_API_BASE__;
+            if (injected && String(injected).trim()) {
+                return String(injected).trim().replace(/\/$/, '');
+            }
             const meta = document.querySelector('meta[name="task-tide-api-base"]');
             const raw = meta && meta.getAttribute('content');
             if (raw && raw.trim()) {
@@ -77,6 +82,9 @@ class TaskTideAPI {
         }
         if (filters.completed !== undefined) {
             queryParams.append('completed', filters.completed);
+        }
+        if (filters.q && String(filters.q).trim()) {
+            queryParams.append('q', String(filters.q).trim());
         }
 
         const queryString = queryParams.toString();

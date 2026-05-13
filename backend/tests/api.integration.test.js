@@ -114,6 +114,42 @@ describe('Task-Tide API', () => {
       expect(updated.body.data.completed).toBe(true);
       expect(updated.body.data.completedAt).toBeDefined();
     });
+
+    it('filters tasks by search query q on title or description', async () => {
+      await request(app)
+        .post('/api/tasks')
+        .send({
+          title: 'Quarterly report',
+          description: 'Finance spreadsheet',
+          category: 'work',
+          priority: 'medium',
+          dueDate: null,
+          estimate: 1,
+          completed: false
+        })
+        .expect(201);
+
+      await request(app)
+        .post('/api/tasks')
+        .send({
+          title: 'Grocery run',
+          description: 'Milk and eggs',
+          category: 'personal',
+          priority: 'low',
+          dueDate: null,
+          estimate: 1,
+          completed: false
+        })
+        .expect(201);
+
+      const byTitle = await request(app).get('/api/tasks').query({ q: 'Quarterly' }).expect(200);
+      expect(byTitle.body.count).toBe(1);
+      expect(byTitle.body.data[0].title).toContain('Quarterly');
+
+      const byDesc = await request(app).get('/api/tasks').query({ q: 'eggs' }).expect(200);
+      expect(byDesc.body.count).toBe(1);
+      expect(byDesc.body.data[0].title).toContain('Grocery');
+    });
   });
 
   describe('POST /api/ai/prioritize', () => {

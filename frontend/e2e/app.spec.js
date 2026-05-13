@@ -1,7 +1,12 @@
 const { test, expect } = require('@playwright/test');
 
+const e2eApiPort = process.env.E2E_API_PORT || '31041';
+
 test.describe('Task-Tide UI', () => {
   test.beforeEach(async ({ page }) => {
+    await page.addInitScript((port) => {
+      window.__TASK_TIDE_API_BASE__ = `http://127.0.0.1:${port}/api`;
+    }, e2eApiPort);
     await page.goto('/public/index.html');
   });
 
@@ -30,5 +35,26 @@ test.describe('Task-Tide UI', () => {
 
     await page.locator('#status-filter').selectOption('active');
     await expect(page.locator('.task-list .task-title', { hasText: unique })).toBeVisible();
+  });
+
+  test('search input filters visible tasks', async ({ page }) => {
+    await expect(page.locator('#connection-status')).toContainText('Live sync', { timeout: 15_000 });
+
+    const a = `SearchA ${Date.now()}`;
+    const b = `SearchB ${Date.now()}`;
+    await page.getByPlaceholder('What needs to be done?').fill(a);
+    await page.getByRole('button', { name: /Add Task/i }).click();
+    await expect(page.locator('.task-list .task-title', { hasText: a })).toBeVisible({ timeout: 10_000 });
+
+    await page.getByPlaceholder('What needs to be done?').fill(b);
+    await page.getByRole('button', { name: /Add Task/i }).click();
+    await expect(page.locator('.task-list .task-title', { hasText: b })).toBeVisible({ timeout: 10_000 });
+
+    await page.locator('#task-search').fill('SearchA');
+    await expect(page.locator('.task-list .task-title', { hasText: a })).toBeVisible();
+    await expect(page.locator('.task-list .task-title', { hasText: b })).toHaveCount(0);
+
+    await page.locator('#task-search').fill('');
+    await expect(page.locator('.task-list .task-title', { hasText: b })).toBeVisible();
   });
 });

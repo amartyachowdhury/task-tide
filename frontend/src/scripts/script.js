@@ -125,6 +125,29 @@ class TaskTideApp {
         if (priorityFilter) priorityFilter.addEventListener('change', () => this.renderTasks());
         if (statusFilter) statusFilter.addEventListener('change', () => this.renderTasks());
 
+        const taskSearch = document.getElementById('task-search');
+        const taskSort = document.getElementById('task-sort');
+        const exportBtn = document.getElementById('export-tasks-btn');
+        if (taskSearch) taskSearch.addEventListener('input', () => this.renderTasks());
+        if (taskSort) taskSort.addEventListener('change', () => this.renderTasks());
+        if (exportBtn) exportBtn.addEventListener('click', () => this.exportTasksToJson());
+
+        document.addEventListener('keydown', (e) => {
+            if (e.defaultPrevented) return;
+            const tag = e.target && e.target.tagName;
+            if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || e.target?.isContentEditable) {
+                return;
+            }
+            if (e.key === '/' && !e.ctrlKey && !e.metaKey && !e.altKey) {
+                const tasksView = document.getElementById('tasks-view');
+                const searchEl = document.getElementById('task-search');
+                if (searchEl && tasksView && !tasksView.classList.contains('hidden')) {
+                    e.preventDefault();
+                    searchEl.focus();
+                }
+            }
+        });
+
         // Modal close
         const modal = document.getElementById('task-modal');
         if (modal) {
@@ -333,14 +356,17 @@ class TaskTideApp {
         const categoryFilter = document.getElementById('category-filter');
         const priorityFilter = document.getElementById('priority-filter');
         const statusFilter = document.getElementById('status-filter');
+        const searchInput = document.getElementById('task-search');
+        const sortSelect = document.getElementById('task-sort');
 
         const categoryValue = categoryFilter ? categoryFilter.value : 'all';
         const priorityValue = priorityFilter ? priorityFilter.value : 'all';
         const statusValue = statusFilter ? statusFilter.value : 'all';
+        const searchRaw = searchInput ? searchInput.value.trim() : '';
+        const sortValue = sortSelect ? sortSelect.value : 'smart';
 
-        let filteredTasks = this.tasks;
+        let filteredTasks = [...this.tasks];
 
-        // Apply filters
         if (categoryValue !== 'all') {
             filteredTasks = filteredTasks.filter(task => task.category === categoryValue);
         }
@@ -353,21 +379,106 @@ class TaskTideApp {
             filteredTasks = filteredTasks.filter((task) => task.completed);
         }
 
-        // Sort by AI score and due date
-        filteredTasks.sort((a, b) => {
+        if (searchRaw) {
+            const needle = searchRaw.toLowerCase();
+            filteredTasks = filteredTasks.filter((task) => {
+                const title = (task.title || '').toLowerCase();
+                const description = (task.description || '').toLowerCase();
+                return title.includes(needle) || description.includes(needle);
+            });
+        }
+
+        this.sortTaskList(filteredTasks, sortValue);
+
+        taskList.innerHTML = filteredTasks.map(task => this.createTaskHTML(task)).join('');
+    }
+
+    sortTaskList(list, sortValue) {
+        const priorityRank = { high: 3, medium: 2, low: 1 };
+        const createdDesc = (a, b) => new Date(b.createdAt) - new Date(a.createdAt);
+        const createdAsc = (a, b) => new Date(a.createdAt) - new Date(b.createdAt);
+        const incompleteFirst = (a, b) => {
             if (a.completed !== b.completed) {
                 return a.completed ? 1 : -1;
             }
-            if (a.aiScore !== b.aiScore) {
-                return b.aiScore - a.aiScore;
-            }
-            if (a.dueDate && b.dueDate) {
-                return new Date(a.dueDate) - new Date(b.dueDate);
-            }
-            return new Date(b.createdAt) - new Date(a.createdAt);
-        });
+            return 0;
+        };
 
-        taskList.innerHTML = filteredTasks.map(task => this.createTaskHTML(task)).join('');
+        switch (sortValue) {
+            case 'due_asc':
+                list.sort((a, b) => {
+                    const inc = incompleteFirst(a, b);
+                    if (inc !== 0) return inc;
+                    const at = a.dueDate ? new Date(a.dueDate).getTime() : Number.POSITIVE_INFINITY;
+                    const bt = b.dueDate ? new Date(b.dueDate).getTime() : Number.POSITIVE_INFINITY;
+                    if (at !== bt) return at - bt;
+                    return createdDesc(a, b);
+                });
+                break;
+            case 'priority':
+                list.sort((a, b) => {
+                    const inc = incompleteFirst(a, b);
+                    if (inc !== 0) return inc;
+                    const pr = (priorityRank[b.priority] || 0) - (priorityRank[a.priority] || 0);
+                    if (pr !== 0) return pr;
+                    return createdDesc(a, b);
+                });
+                break;
+            case 'newest':
+                list.sort((a, b) => {
+                    const inc = incompleteFirst(a, b);
+                    if (inc !== 0) return inc;
+                    return createdDesc(a, b);
+                });
+                break;
+            case 'oldest':
+                list.sort((a, b) => {
+                    const inc = incompleteFirst(a, b);
+                    if (inc !== 0) return inc;
+                    return createdAsc(a, b);
+                });
+                break;
+            default:
+                list.sort((a, b) => {
+                    if (a.completed !== b.completed) {
+                        return a.completed ? 1 : -1;
+                    }
+                    if (a.aiScore !== b.aiScore) {
+                        return b.aiScore - a.aiScore;
+                    }
+                    if (a.dueDate && b.dueDate) {
+                        return new Date(a.dueDate) - new Date(b.dueDate);
+                    }
+                    return new Date(b.createdAt) - new Date(a.createdAt);
+                });
+        }
+    }
+
+    exportTasksToJson() {
+        const rows = this.tasks.map((t) => ({
+            id: t.id,
+            title: t.title,
+            description: t.description || '',
+            category: t.category,
+            priority: t.priority,
+            dueDate: t.dueDate ? new Date(t.dueDate).toISOString() : null,
+            estimate: t.estimate || 1,
+            completed: !!t.completed,
+            completedAt: t.completedAt ? new Date(t.completedAt).toISOString() : undefined,
+            createdAt: t.createdAt ? new Date(t.createdAt).toISOString() : new Date().toISOString(),
+            updatedAt: t.updatedAt ? new Date(t.updatedAt).toISOString() : undefined,
+            aiScore: typeof t.aiScore === 'number' ? t.aiScore : 0
+        }));
+        const blob = new Blob([JSON.stringify(rows, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `task-tide-tasks-${new Date().toISOString().slice(0, 10)}.json`;
+        a.rel = 'noopener';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
     }
 
     createTaskHTML(task) {
@@ -409,7 +520,7 @@ class TaskTideApp {
                     </span>
                     <span class="task-estimate">
                         <i class="fas fa-clock"></i>
-                        ${task.estimate}h
+                        ${task.estimate || 1}h
                     </span>
                     <span class="ai-score">
                         <i class="fas fa-brain"></i>
