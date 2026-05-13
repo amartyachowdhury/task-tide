@@ -1,6 +1,6 @@
+const { randomUUID } = require('crypto');
 const express = require('express');
 const router = express.Router();
-const { v4: uuidv4 } = require('uuid');
 const Joi = require('joi');
 const { tasks } = require('../store/tasksStore');
 const { notifyTasksMutated } = require('../store/tasksPersistence');
@@ -150,7 +150,7 @@ router.post('/', (req, res) => {
     }
     
     const task = {
-      id: uuidv4(),
+      id: randomUUID(),
       ...value,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
