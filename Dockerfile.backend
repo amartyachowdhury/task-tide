@@ -13,8 +13,9 @@ COPY backend/package*.json ./
 # Install dependencies
 RUN npm install --only=production && npm cache clean --force
 
-# Copy source code
+# Copy source and tracked database directory (runtime files are volume-mounted)
 COPY backend/src ./src
+COPY database ./database
 
 # Stage 2: Production stage
 FROM node:18-alpine AS production
@@ -32,10 +33,11 @@ RUN addgroup -g 1001 -S nodejs && \
 # Copy built application from builder stage
 COPY --from=builder --chown=nodejs:nodejs /app/node_modules ./node_modules
 COPY --from=builder --chown=nodejs:nodejs /app/src ./src
+COPY --from=builder --chown=nodejs:nodejs /app/database ./database
 COPY --from=builder --chown=nodejs:nodejs /app/package*.json ./
 
-# Create data directory
-RUN mkdir -p /app/data && chown -R nodejs:nodejs /app/data
+# Writable database directory (matches repo-root database/ layout)
+RUN mkdir -p /app/database && chown -R nodejs:nodejs /app/database
 
 # Switch to non-root user
 USER nodejs

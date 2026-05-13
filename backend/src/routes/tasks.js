@@ -2,8 +2,7 @@ const { randomUUID } = require('crypto');
 const express = require('express');
 const router = express.Router();
 const Joi = require('joi');
-const { tasks } = require('../store/tasksStore');
-const { notifyTasksMutated } = require('../store/tasksPersistence');
+const taskRepository = require('../db/taskRepository');
 
 // Validation schemas
 const taskSchema = Joi.object({
@@ -29,7 +28,7 @@ const updateTaskSchema = Joi.object({
 // Helper function to calculate AI score
 const calculateAIScore = (task) => {
   let score = 0;
-  
+
   // Priority scoring
   const priorityScores = { high: 30, medium: 20, low: 10 };
   score += priorityScores[task.priority];
@@ -45,44 +44,52 @@ const calculateAIScore = (task) => {
   // Title keywords
   const urgentKeywords = ['urgent', 'asap', 'immediately', 'deadline', 'critical'];
   const titleLower = task.title.toLowerCase();
-  if (urgentKeywords.some(keyword => titleLower.includes(keyword))) {
+  if (urgentKeywords.some((keyword) => titleLower.includes(keyword))) {
     score += 15;
   }
 
   return Math.min(score, 100);
 };
 
+function normalizeTaskPayload(value) {
+  const out = { ...value };
+  if (out.dueDate instanceof Date) {
+    out.dueDate = out.dueDate.toISOString();
+  }
+  return out;
+}
+
 // GET /api/tasks - Get all tasks
 router.get('/', (req, res) => {
   try {
     const { category, priority, completed, q } = req.query;
-    
-    let filteredTasks = [...tasks];
-    
+
+    let filteredTasks = [...taskRepository.findAll()];
+
     // Apply filters
     if (category && category !== 'all') {
-      filteredTasks = filteredTasks.filter(task => task.category === category);
+      filteredTasks = filteredTasks.filter((task) => task.category === category);
     }
-    
+
     if (priority && priority !== 'all') {
-      filteredTasks = filteredTasks.filter(task => task.priority === priority);
+      filteredTasks = filteredTasks.filter((task) => task.priority === priority);
     }
-    
+
     if (completed !== undefined) {
       const isCompleted = completed === 'true';
-      filteredTasks = filteredTasks.filter(task => task.completed === isCompleted);
+      filteredTasks = filteredTasks.filter((task) => task.completed === isCompleted);
     }
 
     const search = typeof q === 'string' ? q.trim() : '';
     if (search) {
       const needle = search.toLowerCase();
-      filteredTasks = filteredTasks.filter(task => {
+      filteredTasks = filteredTasks.filter((task) => {
         const title = (task.title || '').toLowerCase();
         const description = (task.description || '').toLowerCase();
         return title.includes(needle) || description.includes(needle);
       });
     }
-    
+
     // Sort by AI score and due date
     filteredTasks.sort((a, b) => {
       if (a.completed !== b.completed) {
@@ -96,7 +103,7 @@ router.get('/', (req, res) => {
       }
       return new Date(b.createdAt) - new Date(a.createdAt);
     });
-    
+
     res.json({
       success: true,
       data: filteredTasks,
@@ -114,15 +121,15 @@ router.get('/', (req, res) => {
 // GET /api/tasks/:id - Get single task
 router.get('/:id', (req, res) => {
   try {
-    const task = tasks.find(t => t.id === req.params.id);
-    
+    const task = taskRepository.findById(req.params.id);
+
     if (!task) {
       return res.status(404).json({
         success: false,
         error: 'Task not found'
       });
     }
-    
+
     res.json({
       success: true,
       data: task
@@ -140,29 +147,29 @@ router.get('/:id', (req, res) => {
 router.post('/', (req, res) => {
   try {
     const { error, value } = taskSchema.validate(req.body);
-    
+
     if (error) {
       return res.status(400).json({
         success: false,
         error: 'Validation error',
-        details: error.details.map(d => d.message)
+        details: error.details.map((d) => d.message)
       });
     }
-    
+
+    const normalized = normalizeTaskPayload(value);
     const task = {
       id: randomUUID(),
-      ...value,
+      ...normalized,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
-      aiScore: calculateAIScore(value)
+      aiScore: calculateAIScore(normalized)
     };
 
     if (task.completed) {
       task.completedAt = new Date().toISOString();
     }
 
-    tasks.push(task);
-    notifyTasksMutated(tasks);
+    taskRepository.insert(task);
 
     res.status(201).json({
       success: true,
@@ -181,29 +188,30 @@ router.post('/', (req, res) => {
 // PUT /api/tasks/:id - Update task
 router.put('/:id', (req, res) => {
   try {
-    const taskIndex = tasks.findIndex(t => t.id === req.params.id);
-    
-    if (taskIndex === -1) {
+    const existing = taskRepository.findById(req.params.id);
+
+    if (!existing) {
       return res.status(404).json({
         success: false,
         error: 'Task not found'
       });
     }
-    
+
     const { error, value } = updateTaskSchema.validate(req.body);
-    
+
     if (error) {
       return res.status(400).json({
         success: false,
         error: 'Validation error',
-        details: error.details.map(d => d.message)
+        details: error.details.map((d) => d.message)
       });
     }
-    
-    const merged = { ...tasks[taskIndex], ...value };
-    if (value.completed === true && !tasks[taskIndex].completed) {
+
+    const normalized = normalizeTaskPayload(value);
+    const merged = { ...existing, ...normalized };
+    if (normalized.completed === true && !existing.completed) {
       merged.completedAt = new Date().toISOString();
-    } else if (value.completed === false) {
+    } else if (normalized.completed === false) {
       delete merged.completedAt;
     }
 
@@ -213,8 +221,7 @@ router.put('/:id', (req, res) => {
       aiScore: calculateAIScore(merged)
     };
 
-    tasks[taskIndex] = updatedTask;
-    notifyTasksMutated(tasks);
+    taskRepository.updateTask(updatedTask);
 
     res.json({
       success: true,
@@ -233,21 +240,20 @@ router.put('/:id', (req, res) => {
 // DELETE /api/tasks/:id - Delete task
 router.delete('/:id', (req, res) => {
   try {
-    const taskIndex = tasks.findIndex(t => t.id === req.params.id);
-    
-    if (taskIndex === -1) {
+    const existing = taskRepository.findById(req.params.id);
+
+    if (!existing) {
       return res.status(404).json({
         success: false,
         error: 'Task not found'
       });
     }
-    
-    const deletedTask = tasks.splice(taskIndex, 1)[0];
-    notifyTasksMutated(tasks);
+
+    taskRepository.deleteById(req.params.id);
 
     res.json({
       success: true,
-      data: deletedTask,
+      data: existing,
       message: 'Task deleted successfully'
     });
   } catch (error) {
@@ -262,29 +268,33 @@ router.delete('/:id', (req, res) => {
 // PATCH /api/tasks/:id/toggle - Toggle task completion
 router.patch('/:id/toggle', (req, res) => {
   try {
-    const taskIndex = tasks.findIndex(t => t.id === req.params.id);
-    
-    if (taskIndex === -1) {
+    const existing = taskRepository.findById(req.params.id);
+
+    if (!existing) {
       return res.status(404).json({
         success: false,
         error: 'Task not found'
       });
     }
-    
-    tasks[taskIndex].completed = !tasks[taskIndex].completed;
-    tasks[taskIndex].updatedAt = new Date().toISOString();
-    if (tasks[taskIndex].completed) {
-      tasks[taskIndex].completedAt = new Date().toISOString();
+
+    const nextCompleted = !existing.completed;
+    const updatedTask = {
+      ...existing,
+      completed: nextCompleted,
+      updatedAt: new Date().toISOString()
+    };
+    if (nextCompleted) {
+      updatedTask.completedAt = new Date().toISOString();
     } else {
-      delete tasks[taskIndex].completedAt;
+      delete updatedTask.completedAt;
     }
-    
-    notifyTasksMutated(tasks);
+
+    taskRepository.updateTask(updatedTask);
 
     res.json({
       success: true,
-      data: tasks[taskIndex],
-      message: `Task marked as ${tasks[taskIndex].completed ? 'completed' : 'incomplete'}`
+      data: updatedTask,
+      message: `Task marked as ${updatedTask.completed ? 'completed' : 'incomplete'}`
     });
   } catch (error) {
     res.status(500).json({

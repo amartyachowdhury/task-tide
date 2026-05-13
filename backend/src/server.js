@@ -4,16 +4,23 @@ const helmet = require('helmet');
 const morgan = require('morgan');
 require('dotenv').config({ quiet: true });
 
-const { tasks } = require('./store/tasksStore');
-const { loadTasksSync } = require('./store/tasksPersistence');
-loadTasksSync(tasks);
+const { openDatabase } = require('./db/database');
+
+const app = express();
+const PORT = process.env.PORT || 3001;
+
+app.use(async (req, res, next) => {
+  try {
+    await openDatabase();
+    next();
+  } catch (err) {
+    next(err);
+  }
+});
 
 const taskRoutes = require('./routes/tasks');
 const aiRoutes = require('./routes/ai');
 const { errorHandler } = require('./middleware/errorHandler');
-
-const app = express();
-const PORT = process.env.PORT || 3001;
 
 const defaultDevOrigins = [
   'http://localhost:8080',
@@ -102,11 +109,18 @@ app.use(errorHandler);
 
 // Start server when run directly (not when imported by tests)
 if (require.main === module) {
-  app.listen(PORT, () => {
-    console.log(`🚀 Task-Tide Backend running on port ${PORT}`);
-    console.log(`📊 Health check: http://localhost:${PORT}/health`);
-    console.log(`🔗 API base URL: http://localhost:${PORT}/api`);
-  });
+  openDatabase()
+    .then(() => {
+      app.listen(PORT, () => {
+        console.log(`🚀 Task-Tide Backend running on port ${PORT}`);
+        console.log(`📊 Health check: http://localhost:${PORT}/health`);
+        console.log(`🔗 API base URL: http://localhost:${PORT}/api`);
+      });
+    })
+    .catch((err) => {
+      console.error('Failed to open database:', err);
+      process.exit(1);
+    });
 }
 
 module.exports = app;

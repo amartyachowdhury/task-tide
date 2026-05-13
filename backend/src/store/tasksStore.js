@@ -1,10 +1,7 @@
-/**
- * Single in-memory task list shared by task and AI routes.
- */
-const tasks = [];
+const taskRepository = require('../db/taskRepository');
 
 function resetTasksForTests() {
-  tasks.length = 0;
+  taskRepository.clearAll();
 }
 
-module.exports = { tasks, resetTasksForTests };
+module.exports = { resetTasksForTests };

@@ -1,0 +1,4 @@
+# Default runtime paths (see backend/src/db/database.js)
+tasks.db
+tasks.json
+*.migrated
