@@ -1,8 +1,6 @@
 const express = require('express');
 const router = express.Router();
-
-// In-memory storage (replace with database in production)
-let tasks = [];
+const { tasks } = require('../store/tasksStore');
 
 // GET /api/ai/suggestions - Get AI suggestions
 router.get('/suggestions', (req, res) => {

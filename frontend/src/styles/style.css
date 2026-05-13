@@ -930,3 +930,23 @@ body {
     background: #1f2937;
     color: #fca5a5;
 }
+
+.quick-task-list {
+    margin: 0.75rem 0 0 1.25rem;
+    padding: 0;
+}
+
+.quick-task-link {
+    background: none;
+    border: none;
+    color: var(--primary-color);
+    cursor: pointer;
+    font: inherit;
+    padding: 0;
+    text-align: left;
+    text-decoration: underline;
+}
+
+.quick-task-link:hover {
+    color: var(--primary-hover);
+}

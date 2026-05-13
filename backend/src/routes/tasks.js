@@ -2,9 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { v4: uuidv4 } = require('uuid');
 const Joi = require('joi');
-
-// In-memory storage (replace with database in production)
-let tasks = [];
+const { tasks } = require('../store/tasksStore');
 
 // Validation schemas
 const taskSchema = Joi.object({
@@ -147,7 +145,11 @@ router.post('/', (req, res) => {
       updatedAt: new Date().toISOString(),
       aiScore: calculateAIScore(value)
     };
-    
+
+    if (task.completed) {
+      task.completedAt = new Date().toISOString();
+    }
+
     tasks.push(task);
     
     res.status(201).json({
@@ -186,13 +188,19 @@ router.put('/:id', (req, res) => {
       });
     }
     
+    const merged = { ...tasks[taskIndex], ...value };
+    if (value.completed === true && !tasks[taskIndex].completed) {
+      merged.completedAt = new Date().toISOString();
+    } else if (value.completed === false) {
+      delete merged.completedAt;
+    }
+
     const updatedTask = {
-      ...tasks[taskIndex],
-      ...value,
+      ...merged,
       updatedAt: new Date().toISOString(),
-      aiScore: calculateAIScore({ ...tasks[taskIndex], ...value })
+      aiScore: calculateAIScore(merged)
     };
-    
+
     tasks[taskIndex] = updatedTask;
     
     res.json({
@@ -251,6 +259,11 @@ router.patch('/:id/toggle', (req, res) => {
     
     tasks[taskIndex].completed = !tasks[taskIndex].completed;
     tasks[taskIndex].updatedAt = new Date().toISOString();
+    if (tasks[taskIndex].completed) {
+      tasks[taskIndex].completedAt = new Date().toISOString();
+    } else {
+      delete tasks[taskIndex].completedAt;
+    }
     
     res.json({
       success: true,

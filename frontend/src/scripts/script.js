@@ -476,6 +476,102 @@ class TaskTideApp {
         }
     }
 
+    escapeHtml(text) {
+        return String(text)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;');
+    }
+
+    showTaskBreakdownModal() {
+        const modal = document.getElementById('task-modal');
+        const modalTitle = document.getElementById('modal-title');
+        const taskDetails = document.getElementById('task-details');
+        if (!modal || !modalTitle || !taskDetails) return;
+
+        const unfinished = this.tasks.filter((t) => !t.completed);
+        const byCategory = unfinished.reduce((acc, t) => {
+            acc[t.category] = (acc[t.category] || 0) + 1;
+            return acc;
+        }, {});
+
+        const summary =
+            Object.keys(byCategory).length > 0
+                ? `By category: ${Object.entries(byCategory)
+                      .map(([k, v]) => `${k} (${v})`)
+                      .join(', ')}`
+                : 'No open tasks right now.';
+
+        modalTitle.textContent = 'Task breakdown';
+        taskDetails.innerHTML = `
+            <div class="task-detail-section">
+                <p>Try splitting large work into 30–60 minute steps so momentum stays high.</p>
+                <p>You have <strong>${unfinished.length}</strong> open task(s).</p>
+                <p>${this.escapeHtml(summary)}</p>
+            </div>
+            <div class="modal-actions">
+                <button class="btn btn-secondary" onclick="app.closeTaskModal()">Close</button>
+            </div>`;
+        modal.classList.add('active');
+        this.switchView('tasks');
+    }
+
+    showQuickTasks() {
+        this.switchView('tasks');
+        const priorityFilter = document.getElementById('priority-filter');
+        const categoryFilter = document.getElementById('category-filter');
+        if (priorityFilter) priorityFilter.value = 'all';
+        if (categoryFilter) categoryFilter.value = 'all';
+
+        const quick = this.tasks
+            .filter((t) => !t.completed && (t.estimate || 1) <= 1)
+            .sort((a, b) => (a.estimate || 1) - (b.estimate || 1));
+
+        const modal = document.getElementById('task-modal');
+        const modalTitle = document.getElementById('modal-title');
+        const taskDetails = document.getElementById('task-details');
+        if (!modal || !modalTitle || !taskDetails) return;
+
+        modalTitle.textContent = 'Quick wins';
+        if (quick.length === 0) {
+            taskDetails.innerHTML = `
+                <div class="task-detail-section">
+                    <p>No tasks with an estimate of 1 hour or less. Add a small task or lower an estimate to build momentum.</p>
+                </div>
+                <div class="modal-actions">
+                    <button class="btn btn-secondary" onclick="app.closeTaskModal()">Close</button>
+                </div>`;
+        } else {
+            const items = quick
+                .slice(0, 10)
+                .map((t) => {
+                    const safeId = String(t.id).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+                    return `<li><button type="button" class="quick-task-link" onclick="app.openTaskById('${safeId}')">${this.escapeHtml(
+                        t.title
+                    )}</button> <span class="task-estimate">(${t.estimate || 1}h)</span></li>`;
+                })
+                .join('');
+
+            taskDetails.innerHTML = `
+                <div class="task-detail-section">
+                    <p>Pick a small task to finish first:</p>
+                    <ul class="quick-task-list">${items}</ul>
+                </div>
+                <div class="modal-actions">
+                    <button class="btn btn-secondary" onclick="app.closeTaskModal()">Close</button>
+                </div>`;
+        }
+        modal.classList.add('active');
+    }
+
+    openTaskById(id) {
+        const task = this.tasks.find((x) => x.id === id);
+        if (task) {
+            this.showTaskModal(task);
+        }
+    }
+
     // Analytics
     updateAnalytics() {
         const completedTasks = this.tasks.filter(task => task.completed).length;

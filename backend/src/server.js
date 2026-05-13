@@ -11,12 +11,46 @@ const { errorHandler } = require('./middleware/errorHandler');
 const app = express();
 const PORT = process.env.PORT || 3001;
 
+const defaultDevOrigins = [
+  'http://localhost:8080',
+  'http://localhost:8000',
+  'http://localhost:3000',
+  'http://127.0.0.1:8080',
+  'http://127.0.0.1:8000',
+  'http://127.0.0.1:3000'
+];
+
+const configuredOrigins = (process.env.CORS_ORIGINS || '')
+  .split(',')
+  .map((s) => s.trim())
+  .filter(Boolean);
+
+const singleFrontend = process.env.FRONTEND_URL
+  ? [process.env.FRONTEND_URL.trim()].filter(Boolean)
+  : [];
+
+const allowedOrigins = new Set([
+  ...defaultDevOrigins,
+  ...configuredOrigins,
+  ...singleFrontend
+]);
+
 // Middleware
 app.use(helmet());
-app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:8080',
-  credentials: true
-}));
+app.use(
+  cors({
+    origin(origin, callback) {
+      if (!origin) {
+        return callback(null, true);
+      }
+      if (allowedOrigins.has(origin)) {
+        return callback(null, true);
+      }
+      return callback(null, false);
+    },
+    credentials: true
+  })
+);
 app.use(morgan('combined'));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
@@ -48,11 +82,8 @@ app.get('/', (req, res) => {
   });
 });
 
-// Error handling middleware
-app.use(errorHandler);
-
-// 404 handler
-app.use('*', (req, res) => {
+// 404 handler (must be registered before the error handler)
+app.use((req, res) => {
   res.status(404).json({
     error: 'Endpoint not found',
     path: req.originalUrl,
@@ -60,11 +91,16 @@ app.use('*', (req, res) => {
   });
 });
 
-// Start server
-app.listen(PORT, () => {
-  console.log(`🚀 Task-Tide Backend running on port ${PORT}`);
-  console.log(`📊 Health check: http://localhost:${PORT}/health`);
-  console.log(`🔗 API base URL: http://localhost:${PORT}/api`);
-});
+// Error handling middleware
+app.use(errorHandler);
+
+// Start server when run directly (not when imported by tests)
+if (require.main === module) {
+  app.listen(PORT, () => {
+    console.log(`🚀 Task-Tide Backend running on port ${PORT}`);
+    console.log(`📊 Health check: http://localhost:${PORT}/health`);
+    console.log(`🔗 API base URL: http://localhost:${PORT}/api`);
+  });
+}
 
 module.exports = app;

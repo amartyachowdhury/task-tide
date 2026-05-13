@@ -3,26 +3,59 @@
 
 class TaskTideAPI {
     constructor() {
-        this.baseUrl = 'http://localhost:3001/api';
+        this.baseUrl = TaskTideAPI.resolveApiBaseUrl();
         this.defaultHeaders = {
             'Content-Type': 'application/json',
         };
+    }
+
+    static resolveApiBaseUrl() {
+        if (typeof document !== 'undefined') {
+            const meta = document.querySelector('meta[name="task-tide-api-base"]');
+            const raw = meta && meta.getAttribute('content');
+            if (raw && raw.trim()) {
+                return raw.trim().replace(/\/$/, '');
+            }
+        }
+        return 'http://localhost:3001/api';
+    }
+
+    static resolveBackendOrigin() {
+        const base = TaskTideAPI.resolveApiBaseUrl();
+        return base.replace(/\/api\/?$/i, '') || base;
     }
 
     // Generic request method
     async request(endpoint, options = {}) {
         const url = `${this.baseUrl}${endpoint}`;
         const config = {
-            headers: this.defaultHeaders,
             ...options,
+            headers: {
+                ...this.defaultHeaders,
+                ...(options.headers || {}),
+            },
         };
 
         try {
             const response = await fetch(url, config);
-            const data = await response.json();
+            const contentType = response.headers.get('content-type') || '';
+            const text = await response.text();
+            let data = {};
+
+            if (text) {
+                if (contentType.includes('application/json')) {
+                    try {
+                        data = JSON.parse(text);
+                    } catch {
+                        throw new Error(`Invalid JSON from API (HTTP ${response.status})`);
+                    }
+                } else {
+                    data = { message: text };
+                }
+            }
 
             if (!response.ok) {
-                throw new Error(data.message || `HTTP error! status: ${response.status}`);
+                throw new Error(data.message || data.error || `HTTP error! status: ${response.status}`);
             }
 
             return data;
@@ -35,7 +68,7 @@ class TaskTideAPI {
     // Task Management API
     async getTasks(filters = {}) {
         const queryParams = new URLSearchParams();
-        
+
         if (filters.category && filters.category !== 'all') {
             queryParams.append('category', filters.category);
         }
@@ -48,7 +81,7 @@ class TaskTideAPI {
 
         const queryString = queryParams.toString();
         const endpoint = queryString ? `/tasks?${queryString}` : '/tasks';
-        
+
         return this.request(endpoint);
     }
 
@@ -101,9 +134,10 @@ class TaskTideAPI {
     // Health check
     async healthCheck() {
         try {
-            const response = await fetch('http://localhost:3001/health');
+            const origin = TaskTideAPI.resolveBackendOrigin();
+            const response = await fetch(`${origin}/health`);
             return response.ok;
-        } catch (error) {
+        } catch {
             return false;
         }
     }
