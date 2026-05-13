@@ -4,22 +4,80 @@
 class TaskTideApp {
     constructor() {
         this.tasks = [];
+        this.useApi = false;
         this.currentView = 'tasks';
         this.currentDate = new Date();
         this.theme = localStorage.getItem('theme') || 'light';
         this.aiSuggestions = [];
-        
-        this.init();
+
+        void this.bootstrap();
     }
 
-    init() {
-        this.loadTasks();
+    static normalizeTaskFromApi(raw) {
+        const base = {
+            ...raw,
+            dueDate: raw.dueDate ? new Date(raw.dueDate) : null,
+            createdAt: raw.createdAt ? new Date(raw.createdAt) : new Date(),
+            updatedAt: raw.updatedAt ? new Date(raw.updatedAt) : new Date(raw.createdAt || Date.now())
+        };
+        if (raw.completed && raw.completedAt) {
+            base.completedAt = new Date(raw.completedAt);
+        } else {
+            delete base.completedAt;
+        }
+        return base;
+    }
+
+    async bootstrap() {
+        const api = typeof window !== 'undefined' ? window.taskTideAPI : null;
+        try {
+            this.useApi = !!(api && (await api.healthCheck()));
+        } catch {
+            this.useApi = false;
+        }
+
+        if (this.useApi) {
+            try {
+                await this.reloadTasksFromApi();
+            } catch (err) {
+                console.warn('[TaskTide] API unreachable, using local storage', err);
+                this.useApi = false;
+                this.loadTasksFromLocal();
+            }
+        } else {
+            this.loadTasksFromLocal();
+        }
+
+        this.setConnectionStatus();
         this.setupEventListeners();
         this.applyTheme();
         this.renderTasks();
         this.renderCalendar();
-        this.generateAISuggestions();
-        this.updateAnalytics();
+        await this.generateAISuggestions();
+        await this.updateAnalytics();
+    }
+
+    async reloadTasksFromApi() {
+        const res = await window.taskTideAPI.getTasks({});
+        if (!res.success) {
+            throw new Error(res.error || 'Failed to load tasks');
+        }
+        this.tasks = (res.data || []).map(TaskTideApp.normalizeTaskFromApi);
+    }
+
+    setConnectionStatus() {
+        const el = document.getElementById('connection-status');
+        if (!el) return;
+        el.textContent = this.useApi ? 'Live sync' : 'Local only';
+        el.title = this.useApi
+            ? 'Tasks sync with Task-Tide API'
+            : 'API unreachable — tasks stay in this browser only';
+        el.classList.toggle('connection-offline', !this.useApi);
+    }
+
+    async refreshInsightsAfterMutation() {
+        await this.generateAISuggestions();
+        await this.updateAnalytics();
     }
 
     // Theme Management
@@ -62,8 +120,10 @@ class TaskTideApp {
         // Filters
         const categoryFilter = document.getElementById('category-filter');
         const priorityFilter = document.getElementById('priority-filter');
+        const statusFilter = document.getElementById('status-filter');
         if (categoryFilter) categoryFilter.addEventListener('change', () => this.renderTasks());
         if (priorityFilter) priorityFilter.addEventListener('change', () => this.renderTasks());
+        if (statusFilter) statusFilter.addEventListener('change', () => this.renderTasks());
 
         // Modal close
         const modal = document.getElementById('task-modal');
@@ -115,13 +175,13 @@ class TaskTideApp {
                 this.renderCalendar();
                 break;
             case 'analytics':
-                this.updateAnalytics();
+                void this.updateAnalytics();
                 break;
         }
     }
 
     // Task Management
-    addTask() {
+    async addTask() {
         const title = document.getElementById('task-title').value.trim();
         const description = document.getElementById('task-description').value.trim();
         const category = document.getElementById('task-category').value;
@@ -134,25 +194,43 @@ class TaskTideApp {
             return;
         }
 
-        const task = {
-            id: Date.now().toString(),
-            title,
-            description,
-            category,
-            priority,
-            dueDate: dueDate ? new Date(dueDate) : null,
-            estimate,
-            completed: false,
-            createdAt: new Date(),
-            aiScore: this.calculateAIScore(title, description, priority, dueDate)
-        };
+        if (this.useApi && window.taskTideAPI) {
+            try {
+                const payload = {
+                    title,
+                    description,
+                    category,
+                    priority,
+                    dueDate: dueDate ? new Date(dueDate).toISOString() : null,
+                    estimate,
+                    completed: false
+                };
+                const res = await window.taskTideAPI.createTask(payload);
+                this.tasks.push(TaskTideApp.normalizeTaskFromApi(res.data));
+            } catch (err) {
+                alert(err.message || 'Could not create task on the server');
+                return;
+            }
+        } else {
+            const task = {
+                id: Date.now().toString(),
+                title,
+                description,
+                category,
+                priority,
+                dueDate: dueDate ? new Date(dueDate) : null,
+                estimate,
+                completed: false,
+                createdAt: new Date(),
+                aiScore: this.calculateAIScore(title, description, priority, dueDate)
+            };
+            this.tasks.push(task);
+            this.saveTasksToLocal();
+        }
 
-        this.tasks.push(task);
-        this.saveTasks();
         this.clearTaskForm();
         this.renderTasks();
-        this.generateAISuggestions();
-        this.updateAnalytics();
+        await this.refreshInsightsAfterMutation();
     }
 
     calculateAIScore(title, description, priority, dueDate) {
@@ -189,28 +267,55 @@ class TaskTideApp {
         document.getElementById('task-estimate').value = '';
     }
 
-    toggleTask(id) {
-        const task = this.tasks.find(t => t.id === id);
-        if (task) {
+    async toggleTask(id) {
+        const task = this.tasks.find((t) => t.id === id);
+        if (!task) return;
+
+        if (this.useApi && window.taskTideAPI) {
+            try {
+                const res = await window.taskTideAPI.toggleTask(id);
+                const idx = this.tasks.findIndex((t) => t.id === id);
+                if (idx !== -1) {
+                    this.tasks[idx] = TaskTideApp.normalizeTaskFromApi(res.data);
+                }
+            } catch (err) {
+                alert(err.message || 'Could not update task on the server');
+                return;
+            }
+        } else {
             task.completed = !task.completed;
             if (task.completed) {
                 task.completedAt = new Date().toISOString();
             } else {
                 delete task.completedAt;
             }
-            this.saveTasks();
-            this.renderTasks();
-            this.updateAnalytics();
+            this.saveTasksToLocal();
         }
+
+        this.renderTasks();
+        await this.refreshInsightsAfterMutation();
     }
 
-    deleteTask(id) {
-        if (confirm('Are you sure you want to delete this task?')) {
-            this.tasks = this.tasks.filter(t => t.id !== id);
-            this.saveTasks();
-            this.renderTasks();
-            this.updateAnalytics();
+    async deleteTask(id) {
+        if (!confirm('Are you sure you want to delete this task?')) {
+            return;
         }
+
+        if (this.useApi && window.taskTideAPI) {
+            try {
+                await window.taskTideAPI.deleteTask(id);
+                this.tasks = this.tasks.filter((t) => t.id !== id);
+            } catch (err) {
+                alert(err.message || 'Could not delete task on the server');
+                return;
+            }
+        } else {
+            this.tasks = this.tasks.filter((t) => t.id !== id);
+            this.saveTasksToLocal();
+        }
+
+        this.renderTasks();
+        await this.refreshInsightsAfterMutation();
     }
 
     editTask(id) {
@@ -227,9 +332,11 @@ class TaskTideApp {
 
         const categoryFilter = document.getElementById('category-filter');
         const priorityFilter = document.getElementById('priority-filter');
-        
+        const statusFilter = document.getElementById('status-filter');
+
         const categoryValue = categoryFilter ? categoryFilter.value : 'all';
         const priorityValue = priorityFilter ? priorityFilter.value : 'all';
+        const statusValue = statusFilter ? statusFilter.value : 'all';
 
         let filteredTasks = this.tasks;
 
@@ -239,6 +346,11 @@ class TaskTideApp {
         }
         if (priorityValue !== 'all') {
             filteredTasks = filteredTasks.filter(task => task.priority === priorityValue);
+        }
+        if (statusValue === 'active') {
+            filteredTasks = filteredTasks.filter((task) => !task.completed);
+        } else if (statusValue === 'completed') {
+            filteredTasks = filteredTasks.filter((task) => task.completed);
         }
 
         // Sort by AI score and due date
@@ -392,7 +504,18 @@ class TaskTideApp {
     }
 
     // AI Features
-    generateAISuggestions() {
+    async generateAISuggestions() {
+        if (this.useApi && window.taskTideAPI) {
+            try {
+                const res = await window.taskTideAPI.getAISuggestions();
+                this.aiSuggestions = Array.isArray(res.data) ? res.data : [];
+                this.renderAISuggestions();
+                return;
+            } catch (err) {
+                console.warn('[TaskTide] AI suggestions API failed, using local rules', err);
+            }
+        }
+
         const suggestions = [];
         
         // Overdue tasks
@@ -462,11 +585,11 @@ class TaskTideApp {
         const container = document.getElementById('ai-suggestions-container');
         if (!container) return;
         
-        container.innerHTML = this.aiSuggestions.map(suggestion => `
+        container.innerHTML = this.aiSuggestions.map((suggestion) => `
             <div class="ai-suggestion ${suggestion.type}">
-                <div class="suggestion-message">${suggestion.message}</div>
-                <button class="suggestion-action" onclick="app.handleSuggestion('${suggestion.type}')">
-                    ${suggestion.action}
+                <div class="suggestion-message">${this.escapeHtml(suggestion.message)}</div>
+                <button class="suggestion-action" onclick="app.handleSuggestion(${JSON.stringify(suggestion.type)})">
+                    ${this.escapeHtml(suggestion.action)}
                 </button>
             </div>
         `).join('');
@@ -479,14 +602,18 @@ class TaskTideApp {
                 // Filter to show overdue tasks
                 const priorityFilter = document.getElementById('priority-filter');
                 const categoryFilter = document.getElementById('category-filter');
+                const statusFilterW = document.getElementById('status-filter');
                 if (priorityFilter) priorityFilter.value = 'all';
                 if (categoryFilter) categoryFilter.value = 'all';
+                if (statusFilterW) statusFilterW.value = 'all';
                 this.renderTasks();
                 break;
             case 'info':
                 // Show high priority tasks
                 const priorityFilter2 = document.getElementById('priority-filter');
+                const statusFilterI = document.getElementById('status-filter');
                 if (priorityFilter2) priorityFilter2.value = 'high';
+                if (statusFilterI) statusFilterI.value = 'all';
                 this.renderTasks();
                 break;
             case 'suggestion':
@@ -503,7 +630,7 @@ class TaskTideApp {
     recordSuggestionUse() {
         const n = parseInt(localStorage.getItem('aiSuggestionsUsed') || '0', 10) + 1;
         localStorage.setItem('aiSuggestionsUsed', String(n));
-        this.updateAnalytics();
+        void this.updateAnalytics();
     }
 
     escapeHtml(text) {
@@ -551,8 +678,10 @@ class TaskTideApp {
         this.switchView('tasks');
         const priorityFilter = document.getElementById('priority-filter');
         const categoryFilter = document.getElementById('category-filter');
+        const statusFilter = document.getElementById('status-filter');
         if (priorityFilter) priorityFilter.value = 'all';
         if (categoryFilter) categoryFilter.value = 'all';
+        if (statusFilter) statusFilter.value = 'all';
 
         const quick = this.tasks
             .filter((t) => !t.completed && (t.estimate || 1) <= 1)
@@ -603,16 +732,45 @@ class TaskTideApp {
     }
 
     // Analytics
-    updateAnalytics() {
-        const completedTasks = this.tasks.filter(task => task.completed).length;
+    async updateAnalytics() {
+        const aiSuggestionsUsed = parseInt(localStorage.getItem('aiSuggestionsUsed') || '0', 10);
+
+        if (this.useApi && window.taskTideAPI) {
+            try {
+                const res = await window.taskTideAPI.getAnalytics();
+                const overview = res.data && res.data.overview;
+                if (overview) {
+                    const completedTasksEl = document.getElementById('completed-tasks');
+                    const productivityScoreEl = document.getElementById('productivity-score');
+                    const timeBlockedEl = document.getElementById('time-blocked');
+                    const aiSuggestionsUsedEl = document.getElementById('ai-suggestions-used');
+
+                    if (completedTasksEl) {
+                        completedTasksEl.textContent = String(overview.completedTasks);
+                    }
+                    if (productivityScoreEl) {
+                        productivityScoreEl.textContent = `${overview.productivityScore}%`;
+                    }
+                    if (timeBlockedEl) {
+                        timeBlockedEl.textContent = `${overview.timeBlocked}h`;
+                    }
+                    if (aiSuggestionsUsedEl) {
+                        aiSuggestionsUsedEl.textContent = String(aiSuggestionsUsed);
+                    }
+                    return;
+                }
+            } catch (err) {
+                console.warn('[TaskTide] Analytics API failed, using local counts', err);
+            }
+        }
+
+        const completedTasks = this.tasks.filter((task) => task.completed).length;
         const totalTasks = this.tasks.length;
         const productivityScore = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
-        
-        const timeBlocked = this.tasks.reduce((total, task) => {
-            return total + (task.completed ? task.estimate : 0);
-        }, 0);
 
-        const aiSuggestionsUsed = parseInt(localStorage.getItem('aiSuggestionsUsed') || '0');
+        const timeBlocked = this.tasks.reduce((total, task) => {
+            return total + (task.completed ? task.estimate || 1 : 0);
+        }, 0);
 
         const completedTasksEl = document.getElementById('completed-tasks');
         const productivityScoreEl = document.getElementById('productivity-score');
@@ -622,7 +780,7 @@ class TaskTideApp {
         if (completedTasksEl) completedTasksEl.textContent = completedTasks;
         if (productivityScoreEl) productivityScoreEl.textContent = `${productivityScore}%`;
         if (timeBlockedEl) timeBlockedEl.textContent = `${timeBlocked}h`;
-        if (aiSuggestionsUsedEl) aiSuggestionsUsedEl.textContent = aiSuggestionsUsed;
+        if (aiSuggestionsUsedEl) aiSuggestionsUsedEl.textContent = String(aiSuggestionsUsed);
     }
 
     // Modal Management
@@ -657,7 +815,7 @@ class TaskTideApp {
                         <strong>Due Date:</strong> ${task.dueDate ? new Date(task.dueDate).toLocaleDateString() : 'Not set'}
                     </div>
                     <div class="detail-item">
-                        <strong>Estimate:</strong> ${task.estimate} hours
+                        <strong>Estimate:</strong> ${task.estimate || 1} hours
                     </div>
                     <div class="detail-item">
                         <strong>AI Score:</strong> ${task.aiScore}/100
@@ -683,15 +841,16 @@ class TaskTideApp {
         if (modal) modal.classList.remove('active');
     }
 
-    // Data Persistence
-    saveTasks() {
+    // Data Persistence (local-only; API mode keeps canonical state on the server)
+    saveTasksToLocal() {
+        if (this.useApi) return;
         localStorage.setItem('taskTideTasks', JSON.stringify(this.tasks));
     }
 
-    loadTasks() {
+    loadTasksFromLocal() {
         const saved = localStorage.getItem('taskTideTasks');
         if (saved) {
-            this.tasks = JSON.parse(saved).map(task => ({
+            this.tasks = JSON.parse(saved).map((task) => ({
                 ...task,
                 dueDate: task.dueDate ? new Date(task.dueDate) : null,
                 createdAt: new Date(task.createdAt)
@@ -701,8 +860,8 @@ class TaskTideApp {
 }
 
 // Global functions for HTML onclick handlers
-function addTask() {
-    app.addTask();
+async function addTask() {
+    await app.addTask();
 }
 
 function closeTaskModal() {

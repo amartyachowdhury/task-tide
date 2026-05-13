@@ -19,6 +19,7 @@
                     <h1>Task-Tide</h1>
                 </div>
                 <div class="header-actions">
+                    <span id="connection-status" class="connection-status" aria-live="polite"></span>
                     <button class="theme-toggle" id="theme-toggle" title="Toggle dark/light mode">
                         <i class="fas fa-moon"></i>
                     </button>
@@ -75,6 +76,11 @@
                                 <option value="high">High</option>
                                 <option value="medium">Medium</option>
                                 <option value="low">Low</option>
+                            </select>
+                            <select id="status-filter" title="Show tasks by completion">
+                                <option value="all">All tasks</option>
+                                <option value="active">Active only</option>
+                                <option value="completed">Completed only</option>
                             </select>
                         </div>
                     </div>

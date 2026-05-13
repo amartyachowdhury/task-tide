@@ -19,9 +19,11 @@ const defaultDevOrigins = [
   'http://localhost:8080',
   'http://localhost:8000',
   'http://localhost:3000',
+  'http://localhost:4173',
   'http://127.0.0.1:8080',
   'http://127.0.0.1:8000',
-  'http://127.0.0.1:3000'
+  'http://127.0.0.1:3000',
+  'http://127.0.0.1:4173'
 ];
 
 const configuredOrigins = (process.env.CORS_ORIGINS || '')

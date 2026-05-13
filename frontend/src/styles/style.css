@@ -106,6 +106,32 @@ body {
 .header-actions {
     display: flex;
     gap: 0.5rem;
+    align-items: center;
+}
+
+.connection-status {
+    font-size: 0.75rem;
+    font-weight: 600;
+    padding: 0.35rem 0.6rem;
+    border-radius: var(--radius-md);
+    background: rgba(16, 185, 129, 0.15);
+    color: var(--accent-color);
+    margin-right: 0.25rem;
+    white-space: nowrap;
+}
+
+.connection-status.connection-offline {
+    background: rgba(148, 163, 184, 0.25);
+    color: var(--text-secondary);
+}
+
+[data-theme="dark"] .connection-status {
+    background: rgba(16, 185, 129, 0.2);
+}
+
+[data-theme="dark"] .connection-status.connection-offline {
+    background: rgba(71, 85, 105, 0.4);
+    color: var(--text-muted);
 }
 
 .theme-toggle,
@@ -244,7 +270,9 @@ body {
 
 .filter-controls {
     display: flex;
+    flex-wrap: wrap;
     gap: 1rem;
+    align-items: center;
 }
 
 .filter-controls select {
