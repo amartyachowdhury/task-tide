@@ -4,6 +4,10 @@ const helmet = require('helmet');
 const morgan = require('morgan');
 require('dotenv').config();
 
+const { tasks } = require('./store/tasksStore');
+const { loadTasksSync } = require('./store/tasksPersistence');
+loadTasksSync(tasks);
+
 const taskRoutes = require('./routes/tasks');
 const aiRoutes = require('./routes/ai');
 const { errorHandler } = require('./middleware/errorHandler');

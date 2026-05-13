@@ -3,6 +3,7 @@ const router = express.Router();
 const { v4: uuidv4 } = require('uuid');
 const Joi = require('joi');
 const { tasks } = require('../store/tasksStore');
+const { notifyTasksMutated } = require('../store/tasksPersistence');
 
 // Validation schemas
 const taskSchema = Joi.object({
@@ -151,7 +152,8 @@ router.post('/', (req, res) => {
     }
 
     tasks.push(task);
-    
+    notifyTasksMutated(tasks);
+
     res.status(201).json({
       success: true,
       data: task,
@@ -202,7 +204,8 @@ router.put('/:id', (req, res) => {
     };
 
     tasks[taskIndex] = updatedTask;
-    
+    notifyTasksMutated(tasks);
+
     res.json({
       success: true,
       data: updatedTask,
@@ -230,7 +233,8 @@ router.delete('/:id', (req, res) => {
     }
     
     const deletedTask = tasks.splice(taskIndex, 1)[0];
-    
+    notifyTasksMutated(tasks);
+
     res.json({
       success: true,
       data: deletedTask,
@@ -265,6 +269,8 @@ router.patch('/:id/toggle', (req, res) => {
       delete tasks[taskIndex].completedAt;
     }
     
+    notifyTasksMutated(tasks);
+
     res.json({
       success: true,
       data: tasks[taskIndex],

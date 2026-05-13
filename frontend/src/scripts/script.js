@@ -74,6 +74,18 @@ class TaskTideApp {
                 }
             });
         }
+
+        const viewToggle = document.getElementById('view-toggle');
+        if (viewToggle) {
+            viewToggle.addEventListener('click', () => this.cycleMainView());
+        }
+    }
+
+    cycleMainView() {
+        const order = ['tasks', 'calendar', 'analytics'];
+        const i = order.indexOf(this.currentView);
+        const nextIdx = i < 0 ? 0 : (i + 1) % order.length;
+        this.switchView(order[nextIdx]);
     }
 
     // View Management
@@ -181,6 +193,11 @@ class TaskTideApp {
         const task = this.tasks.find(t => t.id === id);
         if (task) {
             task.completed = !task.completed;
+            if (task.completed) {
+                task.completedAt = new Date().toISOString();
+            } else {
+                delete task.completedAt;
+            }
             this.saveTasks();
             this.renderTasks();
             this.updateAnalytics();
@@ -244,19 +261,23 @@ class TaskTideApp {
     createTaskHTML(task) {
         const dueDateStr = task.dueDate ? new Date(task.dueDate).toLocaleDateString() : 'No due date';
         const isOverdue = task.dueDate && new Date(task.dueDate) < new Date() && !task.completed;
-        
+        const safeId = String(task.id).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+        const descHtml = task.description
+            ? `<div class="task-description">${this.escapeHtml(task.description)}</div>`
+            : '';
+
         return `
-            <div class="task-item ${task.completed ? 'completed' : ''} ${isOverdue ? 'overdue' : ''}" data-task-id="${task.id}">
+            <div class="task-item ${task.completed ? 'completed' : ''} ${isOverdue ? 'overdue' : ''}" data-task-id="${this.escapeHtml(String(task.id))}">
                 <div class="task-header">
                     <div>
-                        <div class="task-title">${task.title}</div>
-                        ${task.description ? `<div class="task-description">${task.description}</div>` : ''}
+                        <div class="task-title">${this.escapeHtml(task.title)}</div>
+                        ${descHtml}
                     </div>
                     <div class="task-actions">
-                        <button class="task-action" onclick="app.editTask('${task.id}')" title="Edit">
+                        <button class="task-action" onclick="app.editTask('${safeId}')" title="Edit">
                             <i class="fas fa-edit"></i>
                         </button>
-                        <button class="task-action" onclick="app.deleteTask('${task.id}')" title="Delete">
+                        <button class="task-action" onclick="app.deleteTask('${safeId}')" title="Delete">
                             <i class="fas fa-trash"></i>
                         </button>
                     </div>
@@ -264,11 +285,11 @@ class TaskTideApp {
                 <div class="task-meta-info">
                     <span class="task-category">
                         <i class="fas fa-tag"></i>
-                        ${task.category}
+                        ${this.escapeHtml(task.category)}
                     </span>
                     <span class="task-priority ${task.priority}">
                         <i class="fas fa-flag"></i>
-                        ${task.priority}
+                        ${this.escapeHtml(task.priority)}
                     </span>
                     <span class="task-due-date ${isOverdue ? 'overdue' : ''}">
                         <i class="fas fa-calendar"></i>
@@ -283,7 +304,7 @@ class TaskTideApp {
                         AI: ${task.aiScore}
                     </span>
                 </div>
-                <div class="task-checkbox" onclick="app.toggleTask('${task.id}')">
+                <div class="task-checkbox" onclick="app.toggleTask('${safeId}')">
                     <i class="fas fa-${task.completed ? 'check-circle' : 'circle'}"></i>
                 </div>
             </div>
@@ -330,11 +351,13 @@ class TaskTideApp {
                      data-date="${currentDate.toISOString().split('T')[0]}">
                     <div class="day-number">${currentDate.getDate()}</div>
                     <div class="day-tasks">
-                        ${dayTasks.slice(0, 3).map(task => `
-                            <div class="day-task" onclick="app.showTaskModal(app.tasks.find(t => t.id === '${task.id}'))">
-                                ${task.title}
-                            </div>
-                        `).join('')}
+                        ${dayTasks.slice(0, 3).map((task) => {
+                            const safeId = String(task.id).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+                            return `
+                            <div class="day-task" onclick="app.openTaskById('${safeId}')">
+                                ${this.escapeHtml(task.title)}
+                            </div>`;
+                        }).join('')}
                         ${dayTasks.length > 3 ? `<div class="day-task">+${dayTasks.length - 3} more</div>` : ''}
                     </div>
                 </div>
@@ -450,6 +473,7 @@ class TaskTideApp {
     }
 
     handleSuggestion(type) {
+        this.recordSuggestionUse();
         switch(type) {
             case 'warning':
                 // Filter to show overdue tasks
@@ -474,6 +498,12 @@ class TaskTideApp {
                 this.showQuickTasks();
                 break;
         }
+    }
+
+    recordSuggestionUse() {
+        const n = parseInt(localStorage.getItem('aiSuggestionsUsed') || '0', 10) + 1;
+        localStorage.setItem('aiSuggestionsUsed', String(n));
+        this.updateAnalytics();
     }
 
     escapeHtml(text) {
@@ -603,20 +633,25 @@ class TaskTideApp {
 
         if (!modal || !modalTitle || !taskDetails) return;
 
+        const safeId = String(task.id).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+        const desc = task.description
+            ? this.escapeHtml(task.description)
+            : 'No description provided';
+
         modalTitle.textContent = task.title;
         taskDetails.innerHTML = `
             <div class="task-detail-section">
                 <h4>Description</h4>
-                <p>${task.description || 'No description provided'}</p>
+                <p>${desc}</p>
             </div>
             <div class="task-detail-section">
                 <h4>Details</h4>
                 <div class="detail-grid">
                     <div class="detail-item">
-                        <strong>Category:</strong> ${task.category}
+                        <strong>Category:</strong> ${this.escapeHtml(task.category)}
                     </div>
                     <div class="detail-item">
-                        <strong>Priority:</strong> ${task.priority}
+                        <strong>Priority:</strong> ${this.escapeHtml(task.priority)}
                     </div>
                     <div class="detail-item">
                         <strong>Due Date:</strong> ${task.dueDate ? new Date(task.dueDate).toLocaleDateString() : 'Not set'}
@@ -633,7 +668,7 @@ class TaskTideApp {
                 </div>
             </div>
             <div class="modal-actions">
-                <button class="btn btn-primary" onclick="app.toggleTask('${task.id}'); app.closeTaskModal();">
+                <button class="btn btn-primary" onclick="app.toggleTask('${safeId}'); app.closeTaskModal();">
                     ${task.completed ? 'Mark Incomplete' : 'Mark Complete'}
                 </button>
                 <button class="btn btn-secondary" onclick="app.closeTaskModal()">Close</button>
