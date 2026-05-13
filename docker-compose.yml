@@ -62,27 +62,6 @@ services:
       - "traefik.http.routers.task-tide-frontend.rule=Host(`task-tide.localhost`)"
       - "traefik.http.services.task-tide-frontend.loadbalancer.server.port=80"
 
-  # Development service (optional)
-  dev:
-    build:
-      context: .
-      dockerfile: Dockerfile.dev
-    container_name: task-tide-dev
-    ports:
-      - "3000:3000"
-      - "3001:3001"
-    volumes:
-      - .:/app
-      - /app/node_modules
-      - /app/frontend/node_modules
-      - /app/backend/node_modules
-    environment:
-      - NODE_ENV=development
-    profiles:
-      - dev
-    networks:
-      - task-tide-network
-
 # Networks
 networks:
   task-tide-network:
