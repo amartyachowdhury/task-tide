@@ -1,0 +1,7 @@
+**/node_modules
+**/.git
+**/test-results
+**/playwright-report
+**/.cursor
+**/*.md
+!README.md

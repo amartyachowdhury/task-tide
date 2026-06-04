@@ -4,11 +4,12 @@
   "description": "Frontend for Task-Tide AI-Powered Task Scheduler",
   "main": "public/index.html",
   "scripts": {
-    "start": "python -m http.server 8000",
-    "dev": "python -m http.server 3000",
+    "start": "python3 -m http.server 8000",
+    "dev": "python3 -m http.server 3000",
     "build": "echo 'No build process needed for static files'",
     "lint": "echo 'No linting configured yet'",
     "test": "playwright test",
+    "test:frontend": "playwright test",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui"
   },
@@ -27,6 +28,6 @@
     "@playwright/test": "^1.49.0"
   },
   "engines": {
-    "node": ">=18.0.0"
+    "node": ">=20.0.0"
   }
 }
