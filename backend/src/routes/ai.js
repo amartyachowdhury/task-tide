@@ -5,7 +5,7 @@ const taskRepository = require('../db/taskRepository');
 // GET /api/ai/suggestions - Get AI suggestions
 router.get('/suggestions', (req, res) => {
   try {
-    const tasks = taskRepository.findAll();
+    const tasks = taskRepository.findAll(req.auth.organizationId);
     const suggestions = [];
 
     // Overdue tasks
@@ -102,7 +102,7 @@ router.get('/suggestions', (req, res) => {
 // GET /api/ai/analytics - Get productivity analytics
 router.get('/analytics', (req, res) => {
   try {
-    const tasks = taskRepository.findAll();
+    const tasks = taskRepository.findAll(req.auth.organizationId);
     const totalTasks = tasks.length;
     const completedTasks = tasks.filter(task => task.completed).length;
     const productivityScore = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;

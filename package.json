@@ -46,7 +46,7 @@
   },
   "homepage": "https://github.com/amartyachowdhury/task-tide#readme",
   "engines": {
-    "node": ">=18.0.0"
+    "node": ">=20.0.0"
   },
   "devDependencies": {
     "concurrently": "^9.2.1"

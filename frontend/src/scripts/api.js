@@ -19,10 +19,48 @@ class TaskTideAPI {
             const meta = document.querySelector('meta[name="task-tide-api-base"]');
             const raw = meta && meta.getAttribute('content');
             if (raw && raw.trim()) {
-                return raw.trim().replace(/\/$/, '');
+                const t = raw.trim();
+                if (t.startsWith('/')) {
+                    const origin =
+                        typeof window !== 'undefined' && window.location && window.location.origin
+                            ? window.location.origin
+                            : '';
+                    return (origin + t).replace(/\/$/, '');
+                }
+                return t.replace(/\/$/, '');
             }
         }
         return 'http://localhost:3001/api';
+    }
+
+    static authStorageKey() {
+        return 'taskTideAuthToken';
+    }
+
+    getStoredToken() {
+        try {
+            return localStorage.getItem(TaskTideAPI.authStorageKey());
+        } catch {
+            return null;
+        }
+    }
+
+    setStoredToken(token) {
+        try {
+            if (token) localStorage.setItem(TaskTideAPI.authStorageKey(), token);
+            else localStorage.removeItem(TaskTideAPI.authStorageKey());
+        } catch {
+            /* ignore */
+        }
+    }
+
+    clearStoredToken() {
+        this.setStoredToken(null);
+    }
+
+    authHeader() {
+        const token = this.getStoredToken();
+        return token ? { Authorization: `Bearer ${token}` } : {};
     }
 
     static resolveBackendOrigin() {
@@ -37,6 +75,7 @@ class TaskTideAPI {
             ...options,
             headers: {
                 ...this.defaultHeaders,
+                ...this.authHeader(),
                 ...(options.headers || {}),
             },
         };
@@ -90,7 +129,38 @@ class TaskTideAPI {
         const queryString = queryParams.toString();
         const endpoint = queryString ? `/tasks?${queryString}` : '/tasks';
 
-        return this.request(endpoint);
+        let lastErr;
+        for (let attempt = 0; attempt < 3; attempt += 1) {
+            try {
+                return await this.request(endpoint);
+            } catch (e) {
+                lastErr = e;
+                const m = String(e && e.message ? e.message : '');
+                const retriable =
+                    /status: (502|503|504)/i.test(m) ||
+                    /Failed to fetch/i.test(m) ||
+                    /NetworkError/i.test(m);
+                if (!retriable || attempt === 2) {
+                    throw e;
+                }
+                await new Promise((r) => setTimeout(r, 250 * (attempt + 1)));
+            }
+        }
+        throw lastErr;
+    }
+
+    async bulkDeleteTasks(ids) {
+        return this.request('/tasks/bulk/delete', {
+            method: 'POST',
+            body: JSON.stringify({ ids })
+        });
+    }
+
+    async bulkSetTasksCompleted(ids, completed) {
+        return this.request('/tasks/bulk/set-completed', {
+            method: 'POST',
+            body: JSON.stringify({ ids, completed })
+        });
     }
 
     async getTask(id) {
@@ -137,6 +207,26 @@ class TaskTideAPI {
             method: 'POST',
             body: JSON.stringify({ tasks }),
         });
+    }
+
+    async authRegister(payload) {
+        return this.request('/auth/register', {
+            method: 'POST',
+            body: JSON.stringify(payload),
+            headers: { 'Content-Type': 'application/json' }
+        });
+    }
+
+    async authLogin(payload) {
+        return this.request('/auth/login', {
+            method: 'POST',
+            body: JSON.stringify(payload),
+            headers: { 'Content-Type': 'application/json' }
+        });
+    }
+
+    async authMe() {
+        return this.request('/auth/me');
     }
 
     // Health check

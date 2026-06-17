@@ -44,20 +44,24 @@ describe('SQLite task persistence', () => {
 
     await openDatabase();
     const now = new Date().toISOString();
-    taskRepository.insert({
-      id: 'id-1',
-      title: 'Persisted',
-      description: '',
-      category: 'work',
-      priority: 'medium',
-      dueDate: null,
-      estimate: 1,
-      completed: false,
-      createdAt: now,
-      updatedAt: now,
-      aiScore: 42
-    });
-    expect(taskRepository.findAll()).toHaveLength(1);
+    const { DEFAULT_TENANT_ORG_ID } = require('../src/config/saas');
+    taskRepository.insert(
+      {
+        id: 'id-1',
+        title: 'Persisted',
+        description: '',
+        category: 'work',
+        priority: 'medium',
+        dueDate: null,
+        estimate: 1,
+        completed: false,
+        createdAt: now,
+        updatedAt: now,
+        aiScore: 42
+      },
+      DEFAULT_TENANT_ORG_ID
+    );
+    expect(taskRepository.findAll(DEFAULT_TENANT_ORG_ID)).toHaveLength(1);
     closeDatabase();
 
     jest.resetModules();
@@ -66,7 +70,7 @@ describe('SQLite task persistence', () => {
     const taskRepository2 = require('../src/db/taskRepository');
     await open2();
 
-    const rows = taskRepository2.findAll();
+    const rows = taskRepository2.findAll(DEFAULT_TENANT_ORG_ID);
     expect(rows).toHaveLength(1);
     expect(rows[0].title).toBe('Persisted');
     expect(rows[0].aiScore).toBe(42);
@@ -97,7 +101,8 @@ describe('SQLite task persistence', () => {
     const taskRepository = require('../src/db/taskRepository');
 
     await openDatabase();
-    const rows = taskRepository.findAll();
+    const { DEFAULT_TENANT_ORG_ID } = require('../src/config/saas');
+    const rows = taskRepository.findAll(DEFAULT_TENANT_ORG_ID);
     expect(rows).toHaveLength(1);
     expect(rows[0].title).toBe('From JSON');
     expect(fs.existsSync(legacyPath)).toBe(false);

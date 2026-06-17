@@ -2,7 +2,7 @@
 # Multi-stage Docker build for production deployment
 
 # Stage 1: Build stage
-FROM node:18-alpine AS builder
+FROM node:20-alpine AS builder
 
 # Set working directory
 WORKDIR /app
@@ -10,7 +10,9 @@ WORKDIR /app
 # Copy source code
 COPY . .
 
-# Create a simple build process (minify, optimize, etc.)
+# Point the SPA at the proxied API (same origin in the browser)
+RUN sed -i 's|http://localhost:3001/api|/api|g' /app/frontend/public/index.html
+
 RUN echo "Building Task-Tide frontend..." && \
     echo "Build completed successfully!"
 

@@ -54,7 +54,7 @@ jobs:
         working-directory: frontend
 
       - name: Test (frontend E2E)
-        run: npm run test:frontend
+        run: npm test
         working-directory: frontend
         env:
           CI: true

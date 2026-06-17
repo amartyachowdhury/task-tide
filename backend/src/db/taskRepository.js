@@ -26,18 +26,23 @@ function rowToTask(row) {
   return task;
 }
 
-function findAll() {
+function findAll(organizationId) {
   const api = getDb();
-  return api.allRows('SELECT * FROM tasks').map(rowToTask);
+  return api
+    .allRows('SELECT * FROM tasks WHERE organization_id = ?', [organizationId])
+    .map(rowToTask);
 }
 
-function findById(id) {
+function findById(id, organizationId) {
   const api = getDb();
-  const row = api.getRow('SELECT * FROM tasks WHERE id = ?', [id]);
+  const row = api.getRow('SELECT * FROM tasks WHERE id = ? AND organization_id = ?', [
+    id,
+    organizationId
+  ]);
   return row ? rowToTask(row) : undefined;
 }
 
-function insert(task) {
+function insert(task, organizationId) {
   const api = getDb();
   const dueDate = isoOrNull(task.dueDate);
   const completedAt = task.completedAt != null ? isoOrNull(task.completedAt) : null;
@@ -45,8 +50,8 @@ function insert(task) {
     `
     INSERT INTO tasks (
       id, title, description, category, priority, due_date, estimate,
-      completed, created_at, updated_at, ai_score, completed_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      completed, created_at, updated_at, ai_score, completed_at, organization_id
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `,
     [
       task.id,
@@ -60,12 +65,13 @@ function insert(task) {
       task.createdAt,
       task.updatedAt,
       Number(task.aiScore) || 0,
-      completedAt
+      completedAt,
+      organizationId
     ]
   );
 }
 
-function updateTask(task) {
+function updateTask(task, organizationId) {
   const api = getDb();
   const dueDate = isoOrNull(task.dueDate);
   const completedAt = task.completedAt != null ? isoOrNull(task.completedAt) : null;
@@ -82,7 +88,7 @@ function updateTask(task) {
       updated_at = ?,
       ai_score = ?,
       completed_at = ?
-    WHERE id = ?
+    WHERE id = ? AND organization_id = ?
   `,
     [
       task.title,
@@ -95,21 +101,52 @@ function updateTask(task) {
       task.updatedAt,
       Number(task.aiScore) || 0,
       completedAt,
-      task.id
+      task.id,
+      organizationId
     ]
   );
 }
 
-function deleteById(id) {
+function deleteById(id, organizationId) {
   const api = getDb();
-  const before = api.getRow('SELECT id FROM tasks WHERE id = ?', [id]);
+  const before = api.getRow('SELECT id FROM tasks WHERE id = ? AND organization_id = ?', [
+    id,
+    organizationId
+  ]);
   if (!before) return false;
-  api.runParameterized('DELETE FROM tasks WHERE id = ?', [id]);
+  api.runParameterized('DELETE FROM tasks WHERE id = ? AND organization_id = ?', [id, organizationId]);
   return true;
 }
 
-function clearAll() {
-  getDb().runExec('DELETE FROM tasks');
+function clearAll(organizationId) {
+  getDb().runParameterized('DELETE FROM tasks WHERE organization_id = ?', [organizationId]);
+}
+
+function bulkDeleteByIds(ids, organizationId) {
+  if (!ids || ids.length === 0) return 0;
+  const api = getDb();
+  const placeholders = ids.map(() => '?').join(', ');
+  const sql = `DELETE FROM tasks WHERE organization_id = ? AND id IN (${placeholders})`;
+  api.runParameterized(sql, [organizationId, ...ids]);
+  return ids.length;
+}
+
+function bulkSetCompleted(ids, organizationId, completed) {
+  if (!ids || ids.length === 0) return 0;
+  const api = getDb();
+  const now = new Date().toISOString();
+  const completedInt = completed ? 1 : 0;
+  const completedAt = completed ? now : null;
+  const placeholders = ids.map(() => '?').join(', ');
+  const sql = `
+    UPDATE tasks SET
+      completed = ?,
+      completed_at = ?,
+      updated_at = ?
+    WHERE organization_id = ? AND id IN (${placeholders})
+  `;
+  api.runParameterized(sql, [completedInt, completedAt, now, organizationId, ...ids]);
+  return ids.length;
 }
 
 module.exports = {
@@ -119,5 +156,7 @@ module.exports = {
   updateTask,
   deleteById,
   clearAll,
+  bulkDeleteByIds,
+  bulkSetCompleted,
   rowToTask
 };

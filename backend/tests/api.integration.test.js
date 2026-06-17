@@ -8,9 +8,11 @@ describe('Task-Tide API', () => {
   });
 
   describe('GET /health', () => {
-    it('returns healthy status', async () => {
+    it('returns healthy status when the database is reachable', async () => {
       const res = await request(app).get('/health').expect(200);
       expect(res.body.status).toBe('healthy');
+      expect(res.body.ready).toBe(true);
+      expect(res.body.checks.database).toBe('ok');
       expect(res.body.service).toBe('task-tide-backend');
     });
   });
@@ -19,6 +21,84 @@ describe('Task-Tide API', () => {
     it('returns 404 JSON for unknown API paths', async () => {
       const res = await request(app).get('/api/does-not-exist').expect(404);
       expect(res.body.error).toBe('Endpoint not found');
+    });
+  });
+
+  describe('Auth', () => {
+    it('registers a workspace and accepts Bearer token on tasks', async () => {
+      const email = `int-${Date.now()}@example.com`;
+      const reg = await request(app)
+        .post('/api/auth/register')
+        .send({
+          email,
+          password: 'password12',
+          organizationName: 'Integration Org'
+        })
+        .expect(201);
+
+      expect(reg.body.success).toBe(true);
+      const token = reg.body.data.token;
+      expect(token).toBeDefined();
+
+      const tasks = await request(app)
+        .get('/api/tasks')
+        .set('Authorization', `Bearer ${token}`)
+        .expect(200);
+
+      expect(tasks.body.success).toBe(true);
+      expect(Array.isArray(tasks.body.data)).toBe(true);
+      expect(typeof tasks.body.total).toBe('number');
+    });
+  });
+
+  describe('Task API validation & bulk', () => {
+    it('rejects non-UUID task ids', async () => {
+      const res = await request(app).get('/api/tasks/not-a-uuid').expect(400);
+      expect(res.body.success).toBe(false);
+      expect(res.body.error).toBe('Invalid task id');
+    });
+
+    it('rejects invalid list query parameters', async () => {
+      const res = await request(app).get('/api/tasks').query({ limit: 9999 }).expect(400);
+      expect(res.body.success).toBe(false);
+    });
+
+    it('bulk-deletes tasks by id', async () => {
+      const a = await request(app)
+        .post('/api/tasks')
+        .send({
+          title: 'A',
+          description: '',
+          category: 'work',
+          priority: 'low',
+          dueDate: null,
+          estimate: 1,
+          completed: false
+        })
+        .expect(201);
+      const b = await request(app)
+        .post('/api/tasks')
+        .send({
+          title: 'B',
+          description: '',
+          category: 'work',
+          priority: 'low',
+          dueDate: null,
+          estimate: 1,
+          completed: false
+        })
+        .expect(201);
+
+      const del = await request(app)
+        .post('/api/tasks/bulk/delete')
+        .send({ ids: [a.body.data.id, b.body.data.id] })
+        .expect(200);
+
+      expect(del.body.success).toBe(true);
+      expect(del.body.data.deleted).toBe(2);
+
+      const list = await request(app).get('/api/tasks').expect(200);
+      expect(list.body.total).toBe(0);
     });
   });
 

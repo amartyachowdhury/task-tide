@@ -1,3 +1,5 @@
+const fs = require('fs');
+const path = require('path');
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
@@ -5,8 +7,27 @@ const morgan = require('morgan');
 require('dotenv').config({ quiet: true });
 
 const { openDatabase } = require('./db/database');
+const { authenticate } = require('./middleware/authenticate');
 
 const app = express();
+
+/** Monorepo: backend/src → repo root. Docker backend image: static files live under /app next to src. */
+function resolveRepoRoot() {
+  const twoUp = path.join(__dirname, '../..');
+  if (fs.existsSync(path.join(twoUp, 'landing'))) {
+    return twoUp;
+  }
+  const oneUp = path.join(__dirname, '..');
+  if (fs.existsSync(path.join(oneUp, 'landing'))) {
+    return oneUp;
+  }
+  return oneUp;
+}
+
+const repoRoot = resolveRepoRoot();
+const landingDir = path.join(repoRoot, 'landing');
+const frontendPublicDir = path.join(repoRoot, 'frontend/public');
+const frontendSrcDir = path.join(repoRoot, 'frontend/src');
 const PORT = process.env.PORT || 3001;
 
 app.use(async (req, res, next) => {
@@ -18,6 +39,7 @@ app.use(async (req, res, next) => {
   }
 });
 
+const authRoutes = require('./routes/auth');
 const taskRoutes = require('./routes/tasks');
 const aiRoutes = require('./routes/ai');
 const { errorHandler } = require('./middleware/errorHandler');
@@ -68,32 +90,35 @@ app.use(morgan('combined'));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
-// Health check endpoint
+// Health check endpoint (database readiness without failing legacy probes)
 app.get('/health', (req, res) => {
+  let database = 'unknown';
+  try {
+    const { getDb } = require('./db/database');
+    const row = getDb().getRow('SELECT 1 AS ok');
+    database = row != null && Number(row.ok) === 1 ? 'ok' : 'error';
+  } catch {
+    database = 'error';
+  }
+
+  const ready = database === 'ok';
   res.status(200).json({
-    status: 'healthy',
+    status: ready ? 'healthy' : 'degraded',
+    ready,
+    checks: { database },
     timestamp: new Date().toISOString(),
     service: 'task-tide-backend',
     version: '1.0.0'
   });
 });
 
-// API Routes
-app.use('/api/tasks', taskRoutes);
-app.use('/api/ai', aiRoutes);
+app.use('/api/auth', authRoutes);
+app.use('/api/tasks', authenticate, taskRoutes);
+app.use('/api/ai', authenticate, aiRoutes);
 
-// Root endpoint
-app.get('/', (req, res) => {
-  res.json({
-    message: 'Task-Tide Backend API',
-    version: '1.0.0',
-    endpoints: {
-      health: '/health',
-      tasks: '/api/tasks',
-      ai: '/api/ai'
-    }
-  });
-});
+app.use('/', express.static(landingDir, { index: 'index.html' }));
+app.use('/public', express.static(frontendPublicDir));
+app.use('/src', express.static(frontendSrcDir));
 
 // 404 handler (must be registered before the error handler)
 app.use((req, res) => {
