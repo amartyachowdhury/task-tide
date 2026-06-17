@@ -5,32 +5,20 @@ updates:
     schedule:
       interval: weekly
     open-pull-requests-limit: 10
-    labels:
-      - dependencies
-      - javascript
 
   - package-ecosystem: npm
     directory: "/backend"
     schedule:
       interval: weekly
     open-pull-requests-limit: 10
-    labels:
-      - dependencies
-      - javascript
 
   - package-ecosystem: npm
     directory: "/frontend"
     schedule:
       interval: weekly
     open-pull-requests-limit: 10
-    labels:
-      - dependencies
-      - javascript
 
   - package-ecosystem: github-actions
     directory: "/"
     schedule:
       interval: monthly
-    labels:
-      - dependencies
-      - github-actions
