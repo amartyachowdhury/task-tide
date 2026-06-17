@@ -25,7 +25,7 @@
   "license": "MIT",
   "dependencies": {},
   "devDependencies": {
-    "@playwright/test": "^1.49.0"
+    "@playwright/test": "^1.61.0"
   },
   "engines": {
     "node": ">=20.0.0"
