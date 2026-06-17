@@ -9,6 +9,8 @@ class TaskTideApp {
         this.currentDate = new Date();
         this.theme = localStorage.getItem('theme') || 'light';
         this.aiSuggestions = [];
+        this.selectedTaskIds = new Set();
+        this._bulkSelectionBound = false;
 
         void this.bootstrap();
     }
@@ -28,6 +30,103 @@ class TaskTideApp {
         return base;
     }
 
+    static isLikelyServerTaskId(id) {
+        return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(String(id));
+    }
+
+    async ensureAuthenticated(api) {
+        const token = api.getStoredToken();
+        if (token) {
+            try {
+                const me = await api.authMe();
+                if (me && me.success) return;
+            } catch {
+                /* fall through */
+            }
+            api.clearStoredToken();
+        }
+
+        try {
+            const probe = await api.getTasks({});
+            if (probe && probe.success) return;
+        } catch {
+            /* need interactive auth */
+        }
+
+        const gate = document.getElementById('auth-gate');
+        const loginErr = document.getElementById('auth-login-error');
+        const regErr = document.getElementById('auth-register-error');
+        if (gate) {
+            gate.classList.remove('hidden');
+            gate.setAttribute('aria-hidden', 'false');
+        }
+
+        return new Promise((resolve, reject) => {
+            const loginForm = document.getElementById('auth-login-form');
+            const regForm = document.getElementById('auth-register-form');
+
+            const finishSuccess = () => {
+                if (loginForm) loginForm.removeEventListener('submit', onLogin);
+                if (regForm) regForm.removeEventListener('submit', onRegister);
+                if (gate) {
+                    gate.classList.add('hidden');
+                    gate.setAttribute('aria-hidden', 'true');
+                }
+                if (loginErr) loginErr.textContent = '';
+                if (regErr) regErr.textContent = '';
+                resolve();
+            };
+
+            const onLogin = async (ev) => {
+                ev.preventDefault();
+                if (loginErr) loginErr.textContent = '';
+                const email = document.getElementById('login-email')?.value?.trim();
+                const password = document.getElementById('login-password')?.value;
+                try {
+                    const res = await api.authLogin({ email, password });
+                    if (res.success && res.data && res.data.token) {
+                        api.setStoredToken(res.data.token);
+                        finishSuccess();
+                    } else if (loginErr) {
+                        loginErr.textContent = res.error || 'Login failed';
+                    }
+                } catch (e) {
+                    if (loginErr) loginErr.textContent = e.message || 'Login failed';
+                }
+            };
+
+            const onRegister = async (ev) => {
+                ev.preventDefault();
+                if (regErr) regErr.textContent = '';
+                const email = document.getElementById('reg-email')?.value?.trim();
+                const password = document.getElementById('reg-password')?.value;
+                const organizationName = document.getElementById('reg-org')?.value?.trim();
+                try {
+                    const res = await api.authRegister({
+                        email,
+                        password,
+                        organizationName: organizationName || 'My workspace'
+                    });
+                    if (res.success && res.data && res.data.token) {
+                        api.setStoredToken(res.data.token);
+                        finishSuccess();
+                    } else if (regErr) {
+                        regErr.textContent = res.error || 'Registration failed';
+                    }
+                } catch (e) {
+                    if (regErr) regErr.textContent = e.message || 'Registration failed';
+                }
+            };
+
+            if (!loginForm && !regForm) {
+                reject(new Error('Auth UI missing'));
+                return;
+            }
+            if (loginForm) loginForm.addEventListener('submit', onLogin);
+            if (regForm) regForm.addEventListener('submit', onRegister);
+        });
+    }
+
     async bootstrap() {
         const api = typeof window !== 'undefined' ? window.taskTideAPI : null;
         try {
@@ -38,9 +137,10 @@ class TaskTideApp {
 
         if (this.useApi) {
             try {
+                await this.ensureAuthenticated(api);
                 await this.reloadTasksFromApi();
             } catch (err) {
-                console.warn('[TaskTide] API unreachable, using local storage', err);
+                console.warn('[TaskTide] API unreachable or auth failed, using local storage', err);
                 this.useApi = false;
                 this.loadTasksFromLocal();
             }
@@ -67,12 +167,172 @@ class TaskTideApp {
 
     setConnectionStatus() {
         const el = document.getElementById('connection-status');
-        if (!el) return;
-        el.textContent = this.useApi ? 'Live sync' : 'Local only';
-        el.title = this.useApi
-            ? 'Tasks sync with Task-Tide API'
-            : 'API unreachable — tasks stay in this browser only';
-        el.classList.toggle('connection-offline', !this.useApi);
+        if (el) {
+            el.textContent = this.useApi ? 'Live sync' : 'Local only';
+            el.title = this.useApi
+                ? 'Tasks sync with Task-Tide API'
+                : 'API unreachable — tasks stay in this browser only';
+            el.classList.toggle('connection-offline', !this.useApi);
+        }
+
+        const signOutBtn = document.getElementById('sign-out-btn');
+        if (signOutBtn) {
+            const token = typeof window !== 'undefined' && window.taskTideAPI && window.taskTideAPI.getStoredToken?.();
+            const show = this.useApi && !!token;
+            signOutBtn.classList.toggle('hidden', !show);
+        }
+    }
+
+    showToast(message, variant = 'info', durationMs = 4200) {
+        const host = document.getElementById('toast-host');
+        if (!host || !message) return;
+        const el = document.createElement('div');
+        el.className = `toast toast-${variant}`;
+        el.textContent = message;
+        host.appendChild(el);
+        window.setTimeout(() => {
+            el.remove();
+        }, durationMs);
+    }
+
+    signOut() {
+        try {
+            window.taskTideAPI?.clearStoredToken?.();
+        } catch {
+            /* ignore */
+        }
+        window.location.reload();
+    }
+
+    getSelectedIds() {
+        return [...this.selectedTaskIds];
+    }
+
+    bulkSelectVisible() {
+        const taskList = document.getElementById('task-list');
+        if (!taskList) return;
+        taskList.querySelectorAll('.task-item[data-task-id]').forEach((row) => {
+            const id = row.getAttribute('data-task-id');
+            if (id) this.selectedTaskIds.add(String(id));
+        });
+        this.renderTasks();
+        this.showToast('Selected all tasks visible in the list', 'info', 2800);
+    }
+
+    bulkClearSelection() {
+        this.selectedTaskIds.clear();
+        this.renderTasks();
+    }
+
+    async bulkCompleteSelected() {
+        const ids = this.getSelectedIds();
+        if (ids.length === 0) {
+            this.showToast('Select one or more tasks first', 'info');
+            return;
+        }
+        if (this.useApi && window.taskTideAPI) {
+            const uuids = ids.filter(TaskTideApp.isLikelyServerTaskId);
+            if (uuids.length !== ids.length) {
+                this.showToast('Only synced (UUID) tasks can be bulk-updated via the API', 'error');
+                return;
+            }
+            try {
+                await window.taskTideAPI.bulkSetTasksCompleted(uuids, true);
+                this.selectedTaskIds.clear();
+                await this.reloadTasksFromApi();
+                this.renderTasks();
+                await this.refreshInsightsAfterMutation();
+                this.showToast(`Marked ${uuids.length} task(s) complete`, 'success');
+            } catch (err) {
+                this.showToast(err.message || 'Bulk update failed', 'error');
+            }
+        } else {
+            ids.forEach((id) => {
+                const t = this.tasks.find((x) => String(x.id) === id);
+                if (t) {
+                    t.completed = true;
+                    t.completedAt = new Date().toISOString();
+                }
+            });
+            this.selectedTaskIds.clear();
+            this.saveTasksToLocal();
+            this.renderTasks();
+            await this.refreshInsightsAfterMutation();
+            this.showToast(`Marked ${ids.length} task(s) complete`, 'success');
+        }
+    }
+
+    async bulkReopenSelected() {
+        const ids = this.getSelectedIds();
+        if (ids.length === 0) {
+            this.showToast('Select one or more tasks first', 'info');
+            return;
+        }
+        if (this.useApi && window.taskTideAPI) {
+            const uuids = ids.filter(TaskTideApp.isLikelyServerTaskId);
+            if (uuids.length !== ids.length) {
+                this.showToast('Only synced (UUID) tasks can be bulk-updated via the API', 'error');
+                return;
+            }
+            try {
+                await window.taskTideAPI.bulkSetTasksCompleted(uuids, false);
+                this.selectedTaskIds.clear();
+                await this.reloadTasksFromApi();
+                this.renderTasks();
+                await this.refreshInsightsAfterMutation();
+                this.showToast(`Reopened ${uuids.length} task(s)`, 'success');
+            } catch (err) {
+                this.showToast(err.message || 'Bulk update failed', 'error');
+            }
+        } else {
+            ids.forEach((id) => {
+                const t = this.tasks.find((x) => String(x.id) === id);
+                if (t) {
+                    t.completed = false;
+                    delete t.completedAt;
+                }
+            });
+            this.selectedTaskIds.clear();
+            this.saveTasksToLocal();
+            this.renderTasks();
+            await this.refreshInsightsAfterMutation();
+            this.showToast(`Reopened ${ids.length} task(s)`, 'success');
+        }
+    }
+
+    async bulkDeleteSelected() {
+        const ids = this.getSelectedIds();
+        if (ids.length === 0) {
+            this.showToast('Select one or more tasks first', 'info');
+            return;
+        }
+        if (!window.confirm(`Delete ${ids.length} selected task(s)?`)) {
+            return;
+        }
+        if (this.useApi && window.taskTideAPI) {
+            const uuids = ids.filter(TaskTideApp.isLikelyServerTaskId);
+            if (uuids.length !== ids.length) {
+                this.showToast('Only synced (UUID) tasks can be bulk-deleted via the API', 'error');
+                return;
+            }
+            try {
+                await window.taskTideAPI.bulkDeleteTasks(uuids);
+                this.selectedTaskIds.clear();
+                await this.reloadTasksFromApi();
+                this.renderTasks();
+                await this.refreshInsightsAfterMutation();
+                this.showToast(`Deleted ${uuids.length} task(s)`, 'success');
+            } catch (err) {
+                this.showToast(err.message || 'Bulk delete failed', 'error');
+            }
+        } else {
+            this.tasks = this.tasks.filter((t) => !this.selectedTaskIds.has(String(t.id)));
+            this.selectedTaskIds.clear();
+            this.saveTasksToLocal();
+            this.renderTasks();
+            await this.refreshInsightsAfterMutation();
+            this.showToast('Tasks deleted', 'success');
+        }
     }
 
     async refreshInsightsAfterMutation() {
@@ -162,6 +422,42 @@ class TaskTideApp {
         if (viewToggle) {
             viewToggle.addEventListener('click', () => this.cycleMainView());
         }
+
+        const signOutBtn = document.getElementById('sign-out-btn');
+        if (signOutBtn) {
+            signOutBtn.addEventListener('click', () => this.signOut());
+        }
+
+        const bulkVis = document.getElementById('bulk-select-visible');
+        const bulkClr = document.getElementById('bulk-clear-selection');
+        const bulkDone = document.getElementById('bulk-complete');
+        const bulkOpen = document.getElementById('bulk-reopen');
+        const bulkDel = document.getElementById('bulk-delete');
+        if (bulkVis) bulkVis.addEventListener('click', () => this.bulkSelectVisible());
+        if (bulkClr) bulkClr.addEventListener('click', () => this.bulkClearSelection());
+        if (bulkDone) bulkDone.addEventListener('click', () => void this.bulkCompleteSelected());
+        if (bulkOpen) bulkOpen.addEventListener('click', () => void this.bulkReopenSelected());
+        if (bulkDel) bulkDel.addEventListener('click', () => void this.bulkDeleteSelected());
+
+        const taskList = document.getElementById('task-list');
+        if (taskList && !this._bulkSelectionBound) {
+            this._bulkSelectionBound = true;
+            taskList.addEventListener('change', (e) => {
+                const t = e.target;
+                if (!t || !t.classList || !t.classList.contains('task-select-cb')) return;
+                const raw = t.getAttribute('data-task-id');
+                if (raw == null) return;
+                let id;
+                try {
+                    id = decodeURIComponent(raw);
+                } catch {
+                    id = raw;
+                }
+                const sid = String(id);
+                if (t.checked) this.selectedTaskIds.add(sid);
+                else this.selectedTaskIds.delete(sid);
+            });
+        }
     }
 
     cycleMainView() {
@@ -213,7 +509,7 @@ class TaskTideApp {
         const estimate = parseFloat(document.getElementById('task-estimate').value) || 1;
 
         if (!title) {
-            alert('Please enter a task title');
+            this.showToast('Please enter a task title', 'info');
             return;
         }
 
@@ -231,7 +527,7 @@ class TaskTideApp {
                 const res = await window.taskTideAPI.createTask(payload);
                 this.tasks.push(TaskTideApp.normalizeTaskFromApi(res.data));
             } catch (err) {
-                alert(err.message || 'Could not create task on the server');
+                this.showToast(err.message || 'Could not create task on the server', 'error');
                 return;
             }
         } else {
@@ -302,7 +598,7 @@ class TaskTideApp {
                     this.tasks[idx] = TaskTideApp.normalizeTaskFromApi(res.data);
                 }
             } catch (err) {
-                alert(err.message || 'Could not update task on the server');
+                this.showToast(err.message || 'Could not update task on the server', 'error');
                 return;
             }
         } else {
@@ -328,12 +624,14 @@ class TaskTideApp {
             try {
                 await window.taskTideAPI.deleteTask(id);
                 this.tasks = this.tasks.filter((t) => t.id !== id);
+                this.selectedTaskIds.delete(String(id));
             } catch (err) {
-                alert(err.message || 'Could not delete task on the server');
+                this.showToast(err.message || 'Could not delete task on the server', 'error');
                 return;
             }
         } else {
             this.tasks = this.tasks.filter((t) => t.id !== id);
+            this.selectedTaskIds.delete(String(id));
             this.saveTasksToLocal();
         }
 
@@ -352,6 +650,13 @@ class TaskTideApp {
     renderTasks() {
         const taskList = document.getElementById('task-list');
         if (!taskList) return;
+
+        const validIds = new Set(this.tasks.map((t) => String(t.id)));
+        for (const sid of [...this.selectedTaskIds]) {
+            if (!validIds.has(sid)) {
+                this.selectedTaskIds.delete(sid);
+            }
+        }
 
         const categoryFilter = document.getElementById('category-filter');
         const priorityFilter = document.getElementById('priority-filter');
@@ -485,6 +790,8 @@ class TaskTideApp {
         const dueDateStr = task.dueDate ? new Date(task.dueDate).toLocaleDateString() : 'No due date';
         const isOverdue = task.dueDate && new Date(task.dueDate) < new Date() && !task.completed;
         const safeId = String(task.id).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+        const attrEnc = encodeURIComponent(String(task.id));
+        const checked = this.selectedTaskIds.has(String(task.id)) ? 'checked' : '';
         const descHtml = task.description
             ? `<div class="task-description">${this.escapeHtml(task.description)}</div>`
             : '';
@@ -492,7 +799,10 @@ class TaskTideApp {
         return `
             <div class="task-item ${task.completed ? 'completed' : ''} ${isOverdue ? 'overdue' : ''}" data-task-id="${this.escapeHtml(String(task.id))}">
                 <div class="task-header">
-                    <div>
+                    <label class="task-select" onclick="event.stopPropagation()">
+                        <input type="checkbox" class="task-select-cb" data-task-id="${attrEnc}" ${checked} />
+                    </label>
+                    <div class="task-title-block">
                         <div class="task-title">${this.escapeHtml(task.title)}</div>
                         ${descHtml}
                     </div>

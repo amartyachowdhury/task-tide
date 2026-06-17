@@ -2,7 +2,7 @@
 # Multi-stage Docker build for production deployment
 
 # Stage 1: Build stage
-FROM node:18-alpine AS builder
+FROM node:20-alpine AS builder
 
 # Set working directory
 WORKDIR /app
@@ -13,11 +13,15 @@ COPY backend/package*.json ./
 # Install dependencies
 RUN npm install --only=production && npm cache clean --force
 
-# Copy source code
+# Copy source and tracked database directory (runtime files are volume-mounted)
 COPY backend/src ./src
+COPY database ./database
+COPY landing ./landing
+COPY frontend/public ./frontend/public
+COPY frontend/src ./frontend/src
 
 # Stage 2: Production stage
-FROM node:18-alpine AS production
+FROM node:20-alpine AS production
 
 # Install curl for health checks
 RUN apk add --no-cache curl
@@ -32,10 +36,13 @@ RUN addgroup -g 1001 -S nodejs && \
 # Copy built application from builder stage
 COPY --from=builder --chown=nodejs:nodejs /app/node_modules ./node_modules
 COPY --from=builder --chown=nodejs:nodejs /app/src ./src
+COPY --from=builder --chown=nodejs:nodejs /app/database ./database
+COPY --from=builder --chown=nodejs:nodejs /app/landing ./landing
+COPY --from=builder --chown=nodejs:nodejs /app/frontend ./frontend
 COPY --from=builder --chown=nodejs:nodejs /app/package*.json ./
 
-# Create data directory
-RUN mkdir -p /app/data && chown -R nodejs:nodejs /app/data
+# Writable database directory (matches repo-root database/ layout)
+RUN mkdir -p /app/database && chown -R nodejs:nodejs /app/database
 
 # Switch to non-root user
 USER nodejs

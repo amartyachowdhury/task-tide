@@ -10,6 +10,41 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
+    <div id="auth-gate" class="auth-gate hidden" aria-hidden="true">
+        <div class="auth-gate-backdrop"></div>
+        <div class="auth-gate-card" role="dialog" aria-labelledby="auth-gate-title">
+            <h2 id="auth-gate-title">Sign in to sync</h2>
+            <p class="auth-gate-hint">Log in or create a workspace to use the hosted API.</p>
+            <form id="auth-login-form" class="auth-form">
+                <label class="auth-label">Email
+                    <input type="email" id="login-email" required autocomplete="email">
+                </label>
+                <label class="auth-label">Password
+                    <input type="password" id="login-password" required minlength="8" autocomplete="current-password">
+                </label>
+                <button type="submit" class="auth-submit">Log in</button>
+                <p id="auth-login-error" class="auth-error" role="alert"></p>
+            </form>
+            <hr class="auth-divider">
+            <h3 class="auth-subtitle">New workspace</h3>
+            <form id="auth-register-form" class="auth-form">
+                <label class="auth-label">Email
+                    <input type="email" id="reg-email" required autocomplete="email">
+                </label>
+                <label class="auth-label">Password (min 8 characters)
+                    <input type="password" id="reg-password" required minlength="8" autocomplete="new-password">
+                </label>
+                <label class="auth-label">Workspace name
+                    <input type="text" id="reg-org" required maxlength="120" placeholder="e.g. Northside Clinic">
+                </label>
+                <button type="submit" class="auth-submit auth-submit-secondary">Create account</button>
+                <p id="auth-register-error" class="auth-error" role="alert"></p>
+            </form>
+        </div>
+    </div>
+
+    <div id="toast-host" class="toast-host" aria-live="polite"></div>
+
     <div class="app-container">
         <!-- Header -->
         <header class="app-header">
@@ -20,6 +55,7 @@
                 </div>
                 <div class="header-actions">
                     <span id="connection-status" class="connection-status" aria-live="polite"></span>
+                    <button type="button" class="header-sign-out hidden" id="sign-out-btn" title="Sign out">Sign out</button>
                     <button class="theme-toggle" id="theme-toggle" title="Toggle dark/light mode">
                         <i class="fas fa-moon"></i>
                     </button>
@@ -93,6 +129,13 @@
                             <button type="button" id="export-tasks-btn" class="btn-export-tasks" title="Download all tasks as JSON">
                                 <i class="fas fa-download" aria-hidden="true"></i> Export JSON
                             </button>
+                            <span class="task-bulk-actions" id="task-bulk-actions" title="Multi-select tasks in the list below">
+                                <button type="button" id="bulk-select-visible" class="btn-bulk">Select visible</button>
+                                <button type="button" id="bulk-clear-selection" class="btn-bulk">Clear selection</button>
+                                <button type="button" id="bulk-complete" class="btn-bulk">Complete selected</button>
+                                <button type="button" id="bulk-reopen" class="btn-bulk">Reopen selected</button>
+                                <button type="button" id="bulk-delete" class="btn-bulk btn-bulk-danger">Delete selected</button>
+                            </span>
                         </div>
                     </div>
 

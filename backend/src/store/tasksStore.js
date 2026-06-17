@@ -1,10 +1,8 @@
-/**
- * Single in-memory task list shared by task and AI routes.
- */
-const tasks = [];
+const taskRepository = require('../db/taskRepository');
+const { DEFAULT_TENANT_ORG_ID } = require('../config/saas');
 
 function resetTasksForTests() {
-  tasks.length = 0;
+  taskRepository.clearAll(DEFAULT_TENANT_ORG_ID);
 }
 
-module.exports = { tasks, resetTasksForTests };
+module.exports = { resetTasksForTests };

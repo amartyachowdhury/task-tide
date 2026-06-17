@@ -2,26 +2,30 @@ const fs = require('fs');
 const path = require('path');
 const os = require('os');
 
-describe('tasksPersistence', () => {
+describe('SQLite task persistence', () => {
   let tmpDir;
-  let tmpFile;
-  const savedPersistTest = process.env.TASK_TIDE_PERSIST_TEST;
+  let dbFile;
+  const savedSqlitePath = process.env.TASK_TIDE_SQLITE_PATH;
   const savedDataFile = process.env.TASK_TIDE_DATA_FILE;
 
   beforeEach(() => {
-    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'task-tide-'));
-    tmpFile = path.join(tmpDir, 'tasks.json');
-    process.env.TASK_TIDE_PERSIST_TEST = '1';
-    process.env.TASK_TIDE_DATA_FILE = tmpFile;
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'task-tide-sqlite-'));
+    dbFile = path.join(tmpDir, 'tasks.db');
+    process.env.TASK_TIDE_SQLITE_PATH = dbFile;
+
     jest.resetModules();
+    const { closeDatabase } = require('../src/db/database');
+    closeDatabase();
   });
 
-  afterEach(() => {
-    jest.useRealTimers();
-    if (savedPersistTest === undefined) {
-      delete process.env.TASK_TIDE_PERSIST_TEST;
+  afterEach(async () => {
+    const { closeDatabase } = require('../src/db/database');
+    closeDatabase();
+
+    if (savedSqlitePath === undefined) {
+      delete process.env.TASK_TIDE_SQLITE_PATH;
     } else {
-      process.env.TASK_TIDE_PERSIST_TEST = savedPersistTest;
+      process.env.TASK_TIDE_SQLITE_PATH = savedSqlitePath;
     }
     if (savedDataFile === undefined) {
       delete process.env.TASK_TIDE_DATA_FILE;
@@ -29,46 +33,56 @@ describe('tasksPersistence', () => {
       process.env.TASK_TIDE_DATA_FILE = savedDataFile;
     }
     jest.resetModules();
-    fs.rmSync(tmpDir, { recursive: true, force: true });
+    if (tmpDir) {
+      fs.rmSync(tmpDir, { recursive: true, force: true });
+    }
   });
 
-  it('writes tasks to disk after debounced notify', () => {
-    jest.useFakeTimers();
-    const { tasks, resetTasksForTests } = require('../src/store/tasksStore');
-    const persist = require('../src/store/tasksPersistence');
+  it('persists tasks across database reopen on disk', async () => {
+    const { openDatabase, closeDatabase } = require('../src/db/database');
+    const taskRepository = require('../src/db/taskRepository');
 
-    expect(persist.persistenceActive()).toBe(true);
+    await openDatabase();
+    const now = new Date().toISOString();
+    const { DEFAULT_TENANT_ORG_ID } = require('../src/config/saas');
+    taskRepository.insert(
+      {
+        id: 'id-1',
+        title: 'Persisted',
+        description: '',
+        category: 'work',
+        priority: 'medium',
+        dueDate: null,
+        estimate: 1,
+        completed: false,
+        createdAt: now,
+        updatedAt: now,
+        aiScore: 42
+      },
+      DEFAULT_TENANT_ORG_ID
+    );
+    expect(taskRepository.findAll(DEFAULT_TENANT_ORG_ID)).toHaveLength(1);
+    closeDatabase();
 
-    resetTasksForTests();
-    tasks.push({
-      id: 'id-1',
-      title: 'Persisted',
-      description: '',
-      category: 'work',
-      priority: 'medium',
-      dueDate: null,
-      estimate: 1,
-      completed: false,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      aiScore: 42
-    });
+    jest.resetModules();
+    process.env.TASK_TIDE_SQLITE_PATH = dbFile;
+    const { openDatabase: open2 } = require('../src/db/database');
+    const taskRepository2 = require('../src/db/taskRepository');
+    await open2();
 
-    persist.notifyTasksMutated(tasks);
-    jest.advanceTimersByTime(400);
-
-    const raw = fs.readFileSync(tmpFile, 'utf8');
-    const parsed = JSON.parse(raw);
-    expect(parsed).toHaveLength(1);
-    expect(parsed[0].title).toBe('Persisted');
+    const rows = taskRepository2.findAll(DEFAULT_TENANT_ORG_ID);
+    expect(rows).toHaveLength(1);
+    expect(rows[0].title).toBe('Persisted');
+    expect(rows[0].aiScore).toBe(42);
   });
 
-  it('loadTasksSync restores tasks from file', () => {
+  it('migrates legacy tasks.json into SQLite when the DB is empty', async () => {
+    const legacyPath = path.join(tmpDir, 'tasks.json');
     const sample = [
       {
-        id: 'a',
-        title: 'From disk',
-        description: '',
+        id: 'legacy-a',
+        title: 'From JSON',
+        description: 'd',
         category: 'personal',
         priority: 'low',
         dueDate: null,
@@ -79,15 +93,20 @@ describe('tasksPersistence', () => {
         aiScore: 10
       }
     ];
-    fs.mkdirSync(path.dirname(tmpFile), { recursive: true });
-    fs.writeFileSync(tmpFile, JSON.stringify(sample), 'utf8');
+    fs.writeFileSync(legacyPath, JSON.stringify(sample), 'utf8');
+    process.env.TASK_TIDE_DATA_FILE = legacyPath;
 
-    const { tasks, resetTasksForTests } = require('../src/store/tasksStore');
-    const persist = require('../src/store/tasksPersistence');
-    resetTasksForTests();
-    persist.loadTasksSync(tasks);
+    jest.resetModules();
+    const { openDatabase, closeDatabase } = require('../src/db/database');
+    const taskRepository = require('../src/db/taskRepository');
 
-    expect(tasks).toHaveLength(1);
-    expect(tasks[0].title).toBe('From disk');
+    await openDatabase();
+    const { DEFAULT_TENANT_ORG_ID } = require('../src/config/saas');
+    const rows = taskRepository.findAll(DEFAULT_TENANT_ORG_ID);
+    expect(rows).toHaveLength(1);
+    expect(rows[0].title).toBe('From JSON');
+    expect(fs.existsSync(legacyPath)).toBe(false);
+    expect(fs.existsSync(`${legacyPath}.migrated`)).toBe(true);
+    closeDatabase();
   });
 });

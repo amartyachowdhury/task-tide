@@ -18,7 +18,6 @@
     "docker:up": "docker-compose up -d",
     "docker:down": "docker-compose down",
     "docker:logs": "docker-compose logs -f",
-    "deploy": "./scripts/deploy.sh",
     "lint": "npm run lint:backend && npm run lint:frontend",
     "lint:backend": "cd backend && npm run lint",
     "lint:frontend": "cd frontend && npm run lint",
@@ -47,7 +46,7 @@
   },
   "homepage": "https://github.com/amartyachowdhury/task-tide#readme",
   "engines": {
-    "node": ">=18.0.0"
+    "node": ">=20.0.0"
   },
   "devDependencies": {
     "concurrently": "^9.2.1"
